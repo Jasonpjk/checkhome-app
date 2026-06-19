@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #14B8A6;
+  --primary-dark: #0D9488;
+  --bg: #F8F9FA;
+  --text: #1A1A1A;
+  --muted: #475569;
+  --border: #E2E8F0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: #E5E7EB;
+}
+
+input, select, textarea {
+  font-family: inherit;
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
