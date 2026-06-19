@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Date, DateTime, Boolean, ForeignKey, Enum, Text, func
 from sqlalchemy.orm import relationship
+from datetime import date, timedelta
 import enum
 from app.core.database import Base
 
@@ -54,11 +55,10 @@ class Item(Base):
 
     @property
     def days_left(self) -> int | None:
-        from datetime import date
         if self.expiry_date:
             return (self.expiry_date - date.today()).days
         if self.open_date and self.pao_days:
-            end_date = self.open_date + __import__("datetime").timedelta(days=self.pao_days)
+            end_date = self.open_date + timedelta(days=self.pao_days)
             return (end_date - date.today()).days
         return None
 
@@ -66,14 +66,14 @@ class Item(Base):
     def status(self) -> str:
         dl = self.days_left
         if dl is None:
-            return ItemStatus.normal
+            return ItemStatus.normal.value
         if dl < 0:
-            return ItemStatus.expired
+            return ItemStatus.expired.value
         if dl <= 3:
-            return ItemStatus.imminent
+            return ItemStatus.imminent.value
         if dl <= 30:
-            return ItemStatus.warning
-        return ItemStatus.normal
+            return ItemStatus.warning.value
+        return ItemStatus.normal.value
 
 
 class ActionLog(Base):

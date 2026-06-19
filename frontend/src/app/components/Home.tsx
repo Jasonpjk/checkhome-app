@@ -13,11 +13,13 @@ interface HomeProps {
 export function Home({ onCategoryClick, onItemClick, onActionNeededClick, onThisWeekClick }: HomeProps) {
   const [stats, setStats] = useState<ItemStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   useEffect(() => {
+    setError(false)
     fetchStats()
       .then(setStats)
-      .catch(console.error)
+      .catch(() => setError(true))
       .finally(() => setLoading(false))
   }, [])
 
@@ -48,7 +50,7 @@ export function Home({ onCategoryClick, onItemClick, onActionNeededClick, onThis
               <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wide">Urgent</span>
             </div>
             <p className="text-3xl font-bold text-[#1A1A1A] mb-1">
-              {loading ? '...' : (stats?.action_needed ?? 0)}
+              {loading ? '...' : error ? '-' : (stats?.action_needed ?? 0)}
             </p>
             <p className="text-xs text-[#475569]">조치 필요</p>
           </button>
@@ -64,7 +66,7 @@ export function Home({ onCategoryClick, onItemClick, onActionNeededClick, onThis
               <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wide">Week</span>
             </div>
             <p className="text-3xl font-bold text-[#1A1A1A] mb-1">
-              {loading ? '...' : (stats?.this_week ?? 0)}
+              {loading ? '...' : error ? '-' : (stats?.this_week ?? 0)}
             </p>
             <p className="text-xs text-[#475569]">이번 주</p>
           </button>

@@ -9,6 +9,7 @@ import { Vehicle } from './components/Vehicle'
 import { VehicleDetail } from './components/VehicleDetail'
 import { Settings } from './components/Settings'
 import { ItemDetail } from './components/ItemDetail'
+import { ItemEdit } from './components/ItemEdit'
 import { useAuthStore } from '../store/authStore'
 import { Item } from '../api/items'
 import { Vehicle as VehicleType } from '../api/vehicles'
@@ -48,6 +49,23 @@ export default function App() {
 
   if (currentScreen === 'login') {
     return <Login onLogin={() => setCurrentScreen('main')} />
+  }
+
+  if (editingItem) {
+    return (
+      <div className="min-h-screen w-full bg-gray-200 flex items-center justify-center">
+        <div className="h-screen w-full max-w-md shadow-2xl">
+          <ItemEdit
+            item={editingItem}
+            onBack={() => setEditingItem(null)}
+            onSaved={(updated) => {
+              setSelectedItem(updated)
+              setEditingItem(null)
+            }}
+          />
+        </div>
+      </div>
+    )
   }
 
   if (selectedVehicle) {
@@ -118,7 +136,11 @@ export default function App() {
               onFilterChange={() => { setSelectedCategory(null); setSmartFilter(null) }}
             />
           )}
-          {activeTab === 'register' && <Register />}
+          {activeTab === 'register' && (
+            <Register
+              onRegistered={() => setActiveTab('storage')}
+            />
+          )}
           {activeTab === 'vehicle' && (
             <Vehicle
               onVehicleClick={(vehicle) => setSelectedVehicle(vehicle)}

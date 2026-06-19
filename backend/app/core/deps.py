@@ -16,7 +16,7 @@ def get_current_user(
     payload = decode_token(token)
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-    user_id: int = payload.get("sub")
+    user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     user = db.query(User).filter(User.id == int(user_id)).first()
