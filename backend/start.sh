@@ -32,5 +32,24 @@ else:
 echo "Running alembic upgrade head..."
 alembic upgrade head
 
+echo "Setting up initial admin account..."
+python -c "
+import os
+from sqlalchemy import create_engine, text
+
+db_url = os.environ.get('DATABASE_URL', '')
+admin_email = os.environ.get('ADMIN_EMAIL', 'admin@checkhome.app')
+if db_url:
+    engine = create_engine(db_url)
+    with engine.connect() as conn:
+        result = conn.execute(text('UPDATE users SET is_admin = TRUE WHERE email = :email'), {'email': admin_email})
+        conn.commit()
+        if result.rowcount > 0:
+            print(f'Admin flag set for {admin_email}')
+        else:
+            print(f'User {admin_email} not found yet (will be set on first register)')
+    engine.dispose()
+"
+
 echo "Starting uvicorn..."
 exec uvicorn app.main:app --host 0.0.0.0 --port $PORT
