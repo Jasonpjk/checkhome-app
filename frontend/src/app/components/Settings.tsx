@@ -1,21 +1,50 @@
 import { useState } from 'react'
-import { User, Users, MapPin, Bell, CreditCard, Database, MessageCircle, Megaphone, FileText, ChevronRight, X, Plus, LogOut } from 'lucide-react'
+import { User, Users, MapPin, Bell, CreditCard, Database, MessageCircle, Megaphone, FileText, ChevronRight, X, Plus, LogOut, Layers } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
+import { AdBanner } from './AdBanner'
 
 interface SettingsProps {
   onLogout: () => void
 }
 
+const ALL_CATEGORIES = [
+  { id: 'food', name: '식품', icon: '🍎' },
+  { id: 'medicine', name: '약품', icon: '💊' },
+  { id: 'bathroom', name: '욕실/화장품', icon: '🧴' },
+  { id: 'cleaning', name: '세제/청소', icon: '🧹' },
+  { id: 'filter', name: '필터/가전', icon: '🔌' },
+  { id: 'vehicle', name: '차량', icon: '🚗' },
+  { id: 'baby', name: '육아용품', icon: '🍼' },
+  { id: 'pets', name: '반려동물', icon: '🐾' },
+  { id: 'emergency', name: '비상용품', icon: '🚨' },
+  { id: 'documents', name: '문서/보증서', icon: '📄' },
+  { id: 'camping', name: '캠핑용품', icon: '⛺' },
+  { id: 'garden', name: '정원용품', icon: '🌿' },
+]
+
 export function Settings({ onLogout }: SettingsProps) {
   const { user, clearAuth } = useAuthStore()
   const [showFamilyModal, setShowFamilyModal] = useState(false)
   const [showNotificationModal, setShowNotificationModal] = useState(false)
+  const [showCategoriesModal, setShowCategoriesModal] = useState(false)
+  const [enabledCategories, setEnabledCategories] = useState<Set<string>>(
+    new Set(ALL_CATEGORIES.map((c) => c.id))
+  )
 
   const handleLogout = () => {
     if (confirm('로그아웃 하시겠습니까?')) {
       clearAuth()
       onLogout()
     }
+  }
+
+  const toggleCategory = (id: string) => {
+    setEnabledCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   return (
@@ -75,6 +104,21 @@ export function Settings({ onLogout }: SettingsProps) {
               <ChevronRight size={18} className="text-gray-400" />
             </button>
             <button
+              onClick={() => setShowCategoriesModal(true)}
+              className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-[#F8FAFC]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <Layers size={18} className="text-[#475569]" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-medium">관리 항목 설정</p>
+                  <p className="text-xs text-[#94A3B8]">카테고리 표시 설정</p>
+                </div>
+              </div>
+              <ChevronRight size={18} className="text-gray-400" />
+            </button>
+            <button
               onClick={() => setShowNotificationModal(true)}
               className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-[#F8FAFC]"
             >
@@ -88,6 +132,9 @@ export function Settings({ onLogout }: SettingsProps) {
             </button>
           </div>
         </section>
+
+        {/* 가족관리 ~ 구독 섹션 사이 광고 */}
+        <AdBanner variant="mid" text="체크홈 프리미엄으로 업그레이드" subtext="가족 10명 공유 & 무제한 카테고리" icon="star" />
 
         <section>
           <h2 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-2">구독 및 데이터</h2>
@@ -138,6 +185,9 @@ export function Settings({ onLogout }: SettingsProps) {
           로그아웃
         </button>
 
+        {/* 버전 정보 위 광고 */}
+        <AdBanner variant="bottom" text="냉장고 정수기 렌탈 1위 코웨이" subtext="월 2만원대 홈케어 서비스 신청하기" icon="zap" />
+
         <div className="text-center text-xs text-gray-400">
           <p>체크홈 v1.0.0</p>
         </div>
@@ -168,6 +218,42 @@ export function Settings({ onLogout }: SettingsProps) {
                   <li>• 보기전용: 항목 조회만 가능</li>
                   <li>• 수행전용: 완료 처리만 가능</li>
                 </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCategoriesModal && (
+        <div className="absolute inset-0 bg-black/50 flex items-end z-50">
+          <div className="bg-white w-full rounded-t-2xl max-h-[85vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-4 py-3 flex items-center justify-between">
+              <h2 className="text-base font-bold">관리 항목 설정</h2>
+              <button onClick={() => setShowCategoriesModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="px-4 py-4">
+              <div className="bg-gray-100 rounded-lg p-3 mb-4">
+                <p className="text-xs text-[#475569]">홈 화면에 표시할 카테고리를 선택하세요.</p>
+              </div>
+              <div className="space-y-2">
+                {ALL_CATEGORIES.map((cat) => (
+                  <label key={cat.id} className="flex items-center justify-between py-2.5 border-b border-[#F1F5F9] last:border-0">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-gray-100 rounded-lg">
+                        <span className="text-base leading-none">{cat.icon}</span>
+                      </div>
+                      <span className="text-sm font-medium text-[#1A1A1A]">{cat.name}</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={enabledCategories.has(cat.id)}
+                      onChange={() => toggleCategory(cat.id)}
+                      className="w-5 h-5 rounded border-gray-300 accent-[#14B8A6]"
+                    />
+                  </label>
+                ))}
               </div>
             </div>
           </div>

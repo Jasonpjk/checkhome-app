@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Search, SlidersHorizontal, X, ChevronRight } from 'lucide-react'
 import { fetchItems, Item } from '../../api/items'
 import { statusConfig } from '../data/statusConfig'
+import { AdBanner } from './AdBanner'
 
 const categories = ['전체', '식품', '약품', '욕실/화장품', '세제/청소', '필터/가전', '차량']
 const statusFilters = ['전체', '정상', '주의', '임박', '만료', '점검필요']
@@ -157,6 +158,9 @@ export function Storage({ onItemClick, initialCategory, smartFilter, onFilterCha
       </div>
 
       <div className="px-6 pb-6">
+        <div className="mb-4 -mx-6">
+          <AdBanner variant="mid" text="체크홈 프리미엄으로 업그레이드" subtext="무제한 카테고리 & 가족 공유 기능" icon="star" />
+        </div>
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
@@ -186,6 +190,9 @@ export function Storage({ onItemClick, initialCategory, smartFilter, onFilterCha
                 </div>
               </button>
             ))}
+            <div className="-mx-6 pt-2">
+              <AdBanner variant="bottom" text="소방 점검 전문 업체 안심119" subtext="우리 집 안전 점검 무료 상담 받아보세요" icon="shield" />
+            </div>
           </div>
         ) : (
           <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-[#E2E8F0]">

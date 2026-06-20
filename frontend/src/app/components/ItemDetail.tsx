@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ArrowLeft, MapPin, User, Camera, X, Edit2, CheckCircle, Trash2, RefreshCw, Archive } from 'lucide-react'
 import { Item, recordAction, deleteItem } from '../../api/items'
 import { statusConfig, riskConfig } from '../data/statusConfig'
+import { AdBanner } from './AdBanner'
 
 interface ItemDetailProps {
   item: Item
@@ -84,7 +85,7 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-32">
+      <div className="flex-1 overflow-y-auto pb-48">
         <div className="p-6 space-y-4">
           <div className={`${getHeroGradient()} rounded-2xl p-6 border-2 border-white shadow-sm`}>
             <div className="flex items-center gap-2 flex-wrap mb-4">
@@ -148,6 +149,13 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className="-mx-6">
+            <AdBanner variant="mid" text="소방 점검 전문 업체 안심119" subtext="우리 집 안전 점검 무료 상담 받아보세요" icon="shield" />
+          </div>
+          <div className="-mx-6">
+            <AdBanner variant="bottom" text="가전 AS 전문 서비스 홈케어" subtext="당일 방문 수리, 합리적인 요금" icon="zap" />
           </div>
         </div>
       </div>

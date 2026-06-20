@@ -10,6 +10,12 @@ const categories = [
   { id: 'cleaning', name: '세제/청소', icon: '🧹' },
   { id: 'filter', name: '필터/가전', icon: '🔌' },
   { id: 'vehicle', name: '차량', icon: '🚗' },
+  { id: 'baby', name: '육아용품', icon: '🍼' },
+  { id: 'pets', name: '반려동물', icon: '🐾' },
+  { id: 'emergency', name: '비상용품', icon: '🚨' },
+  { id: 'documents', name: '문서/보증서', icon: '📄' },
+  { id: 'camping', name: '캠핑용품', icon: '⛺' },
+  { id: 'garden', name: '정원용품', icon: '🌿' },
 ]
 
 interface RegisterProps {
@@ -94,18 +100,6 @@ export function Register({ onRegistered }: RegisterProps) {
               <p className="font-semibold text-[#1A1A1A] text-sm">{cat.name}</p>
             </button>
           ))}
-        </div>
-
-        <div className="px-6 mt-6">
-          <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide mb-3">곧 지원 예정</p>
-          <div className="grid grid-cols-2 gap-3">
-            {['육아용품', '반려동물', '비상용품', '문서/보증서', '캠핑용품', '정원용품'].map((cat) => (
-              <div key={cat} className="bg-[#F1F5F9] rounded-2xl p-5 text-center opacity-60">
-                <p className="font-medium text-[#94A3B8] text-sm">{cat}</p>
-                <span className="text-xs text-[#CBD5E1]">준비중</span>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     )

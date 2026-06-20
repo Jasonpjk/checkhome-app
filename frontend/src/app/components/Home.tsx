@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Bell, AlertCircle, Calendar, ChevronRight } from 'lucide-react'
 import { fetchStats, ItemStats, Item } from '../../api/items'
 import { statusConfig } from '../data/statusConfig'
+import { AdBanner } from './AdBanner'
 
 interface HomeProps {
   onCategoryClick?: (category: string) => void
@@ -14,7 +15,6 @@ export function Home({ onCategoryClick, onItemClick, onActionNeededClick, onThis
   const [stats, setStats] = useState<ItemStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-
   useEffect(() => {
     setError(false)
     fetchStats()
@@ -24,6 +24,8 @@ export function Home({ onCategoryClick, onItemClick, onActionNeededClick, onThis
   }, [])
 
   const categories = ['식품', '약품', '욕실/화장품', '세제/청소', '차량', '필터/가전']
+  const categoriesTop = categories.slice(0, 4)
+  const categoriesBottom = categories.slice(4)
 
   return (
     <div className="h-full overflow-y-auto pb-20 bg-[#F8F9FA]">
@@ -73,6 +75,10 @@ export function Home({ onCategoryClick, onItemClick, onActionNeededClick, onThis
         </div>
       </div>
 
+      <div className="pt-4">
+        <AdBanner variant="mid" text="집 관리의 시작, 체크홈 프리미엄" subtext="더 스마트한 집 관리를 경험해보세요" icon="star" />
+      </div>
+
       <div className="px-6 py-6 space-y-6">
         {stats && stats.urgent_items.length > 0 && (
           <section>
@@ -111,8 +117,28 @@ export function Home({ onCategoryClick, onItemClick, onActionNeededClick, onThis
 
         <section>
           <h2 className="text-lg font-bold text-[#1A1A1A] mb-4">카테고리</h2>
+          {/* 카테고리 상단 4개 */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            {categoriesTop.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => onCategoryClick?.(cat)}
+                className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md border border-[#E2E8F0] hover:border-[#14B8A6] transition-all text-left group"
+              >
+                <span className="font-semibold text-[#1A1A1A] text-sm">{cat}</span>
+                <p className="text-xs text-[#94A3B8] mt-2">항목 보기</p>
+              </button>
+            ))}
+          </div>
+
+          {/* 중간 광고 */}
+          <div className="mb-4 -mx-6">
+            <AdBanner variant="mid" text="소방 점검 전문 업체 안심119" subtext="우리 집 안전 점검 무료 상담 받아보세요" icon="shield" />
+          </div>
+
+          {/* 카테고리 하단 2개 */}
           <div className="grid grid-cols-2 gap-3">
-            {categories.map((cat) => (
+            {categoriesBottom.map((cat) => (
               <button
                 key={cat}
                 onClick={() => onCategoryClick?.(cat)}
@@ -124,6 +150,9 @@ export function Home({ onCategoryClick, onItemClick, onActionNeededClick, onThis
             ))}
           </div>
         </section>
+
+        {/* 하단 광고 */}
+        <AdBanner variant="bottom" text="냉장고 정수기 렌탈 1위 코웨이" subtext="월 2만원대 홈케어 서비스 신청하기" icon="zap" />
       </div>
     </div>
   )

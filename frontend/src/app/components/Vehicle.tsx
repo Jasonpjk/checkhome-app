@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, Car, ChevronRight, Gauge, Trash2, CheckCircle, X } from 'lucide-react'
 import { fetchVehicles, createVehicle, deleteVehicle, Vehicle as VehicleType } from '../../api/vehicles'
+import { AdBanner } from './AdBanner'
 
 interface VehicleProps {
   onVehicleClick?: (vehicle: VehicleType) => void
@@ -95,6 +96,7 @@ export function Vehicle({ onVehicleClick }: VehicleProps) {
             </button>
           </div>
         ) : (
+          <>
           <div className="space-y-2.5">
             {vehicles.map((vehicle) => {
               const nextCheck = getNextCheck(vehicle)
@@ -144,6 +146,13 @@ export function Vehicle({ onVehicleClick }: VehicleProps) {
               )
             })}
           </div>
+          <div className="mt-4 -mx-4">
+            <AdBanner variant="mid" text="차량 관리 전문 엔진엔" subtext="엔진오일·타이어 교체 최저가 예약" icon="zap" />
+          </div>
+          <div className="mt-3 -mx-4">
+            <AdBanner variant="bottom" text="자동차 보험 비교 견적" subtext="5분만에 최대 30만원 절약하세요" icon="shield" />
+          </div>
+          </>
         )}
       </div>
 
