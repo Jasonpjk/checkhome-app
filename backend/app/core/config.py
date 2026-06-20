@@ -18,7 +18,9 @@ class Settings(BaseSettings):
     KAKAO_CLIENT_SECRET: Optional[str] = None
     # AI 사진 자동 인식 (Claude Vision)
     ANTHROPIC_API_KEY: Optional[str] = None
-    ANTHROPIC_MODEL: str = "claude-opus-4-8"
+    # 기본은 저렴한 Haiku로 처리하고, 자신 없는(흐릿/작은 글씨) 사진만 상위 모델로 자동 재시도
+    ANTHROPIC_MODEL: str = "claude-haiku-4-5"
+    ANTHROPIC_ESCALATION_MODEL: str = "claude-opus-4-8"
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

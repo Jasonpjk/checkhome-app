@@ -49,28 +49,51 @@ export function Register({ onRegistered }: RegisterProps) {
   const [error, setError] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
   const [analyzeError, setAnalyzeError] = useState('')
-  const [aiFilled, setAiFilled] = useState(false)
+  const [aiNote, setAiNote] = useState('')
+  const [aiNoteWarn, setAiNoteWarn] = useState(false)
 
   const runAnalysis = async (dataUrl: string, jumpToForm: boolean) => {
     setAnalyzing(true)
     setAnalyzeError('')
-    setAiFilled(false)
+    setAiNote('')
+    setAiNoteWarn(false)
     try {
       const result = await analyzePhoto(dataUrl)
       if (result.name) setProductName(result.name)
       const nd = normalizeDate(result.expiry_date)
       if (nd) setExpiryDate(nd)
       if (result.memo) setMemo(result.memo)
+
+      let jumped = false
       if (jumpToForm) {
         const cat = categories.find((c) => c.name === result.category)
         if (cat) {
           // 카테고리를 정확히 인식했을 때만 폼으로 이동
           setSelectedCategory(cat.id)
           setStep('form')
+          jumped = true
         }
         // 인식 실패 시: 카테고리 화면에 남아 사용자가 직접 선택 (이름·기한·메모는 미리 채워둠)
       }
-      setAiFilled(true)
+
+      // AI 결과 신뢰도에 따라 정직한 안내 메시지 (돈 낸 고객이 잘못된 값에 속지 않게)
+      const gotSomething = !!(result.name || nd || result.memo)
+      if (!gotSomething) {
+        setAiNote('사진에서 정보를 거의 못 읽었어요. 더 밝게/가까이 찍거나 직접 입력해주세요.')
+        setAiNoteWarn(true)
+      } else if (result.confidence === 'low') {
+        setAiNote('사진이 흐릿해 일부만 읽었을 수 있어요. 제품명·유통기한을 꼭 확인하고 수정해주세요.')
+        setAiNoteWarn(true)
+      } else if (jumpToForm && !jumped) {
+        setAiNote('정보를 읽었어요. 카테고리를 직접 선택하면 자동으로 채워져요.')
+        setAiNoteWarn(false)
+      } else if (!nd) {
+        setAiNote('제품명은 읽었어요. 유통기한은 안 보여서 비어 있으니 직접 입력해주세요.')
+        setAiNoteWarn(false)
+      } else {
+        setAiNote('AI가 자동으로 입력했어요. 확인 후 수정하세요.')
+        setAiNoteWarn(false)
+      }
     } catch (err: any) {
       setAnalyzeError(err?.response?.data?.detail || 'AI 분석에 실패했습니다. 직접 입력해주세요.')
     } finally {
@@ -106,7 +129,8 @@ export function Register({ onRegistered }: RegisterProps) {
     setHandlerName('')
     setMemo('')
     setPhotoPreview(null)
-    setAiFilled(false)
+    setAiNote('')
+    setAiNoteWarn(false)
     setAnalyzeError('')
   }
 
@@ -182,10 +206,10 @@ export function Register({ onRegistered }: RegisterProps) {
             </div>
           </label>
           {analyzeError && <p className="text-rose-500 text-xs mt-2 px-1">{analyzeError}</p>}
-          {aiFilled && !analyzing && (
-            <p className="text-[#14B8A6] text-xs mt-2 px-1 flex items-center gap-1">
-              <Sparkles size={12} />
-              AI가 정보를 읽었어요. 카테고리를 선택하면 자동으로 채워져요.
+          {aiNote && !analyzing && (
+            <p className={`text-xs mt-2 px-1 flex items-center gap-1 ${aiNoteWarn ? 'text-amber-600' : 'text-[#14B8A6]'}`}>
+              <Sparkles size={12} className="flex-shrink-0" />
+              {aiNote}
             </p>
           )}
         </div>
@@ -262,7 +286,7 @@ export function Register({ onRegistered }: RegisterProps) {
               <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
               <button
                 type="button"
-                onClick={() => { setPhotoPreview(null); setAiFilled(false) }}
+                onClick={() => { setPhotoPreview(null); setAiNote(''); setAiNoteWarn(false) }}
                 className="absolute top-3 right-3 p-2 bg-white rounded-lg shadow-md"
               >
                 <X size={18} />
@@ -289,10 +313,10 @@ export function Register({ onRegistered }: RegisterProps) {
               <p className="text-xs text-[#94A3B8] mt-1">촬영하면 AI가 자동 입력해요</p>
             </label>
           )}
-          {aiFilled && (
-            <p className="text-[#14B8A6] text-xs mt-2 flex items-center gap-1">
-              <Sparkles size={12} />
-              AI가 자동으로 입력했어요. 확인 후 수정하세요.
+          {aiNote && (
+            <p className={`text-xs mt-2 flex items-center gap-1 ${aiNoteWarn ? 'text-amber-600' : 'text-[#14B8A6]'}`}>
+              <Sparkles size={12} className="flex-shrink-0" />
+              {aiNote}
             </p>
           )}
           {analyzeError && <p className="text-rose-500 text-xs mt-2">{analyzeError}</p>}
