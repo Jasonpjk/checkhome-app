@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Camera, ChevronLeft, CheckCircle, X } from 'lucide-react'
 import { createItem } from '../../api/items'
 import { getCategoryTemplates, categoryIdMap } from '../data/categoryTemplates'
+import { AdBanner } from './AdBanner'
 
 const categories = [
   { id: 'food', name: '식품', icon: '🍎' },
@@ -90,7 +91,7 @@ export function Register({ onRegistered }: RegisterProps) {
           <p className="text-sm text-[#64748B]">카테고리를 선택하세요</p>
         </div>
         <div className="px-6 grid grid-cols-2 gap-3">
-          {categories.map((cat) => (
+          {categories.slice(0, 6).map((cat) => (
             <button
               key={cat.id}
               onClick={() => { setSelectedCategory(cat.id); setStep('form') }}
@@ -100,6 +101,27 @@ export function Register({ onRegistered }: RegisterProps) {
               <p className="font-semibold text-[#1A1A1A] text-sm">{cat.name}</p>
             </button>
           ))}
+        </div>
+
+        <div className="mt-4">
+          <AdBanner variant="mid" text="체크홈 프리미엄으로 업그레이드" subtext="12개 카테고리 무제한 관리" icon="star" />
+        </div>
+
+        <div className="px-6 grid grid-cols-2 gap-3 mt-4">
+          {categories.slice(6).map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => { setSelectedCategory(cat.id); setStep('form') }}
+              className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md border border-[#E2E8F0] hover:border-[#14B8A6] transition-all text-center"
+            >
+              <div className="text-4xl mb-3">{cat.icon}</div>
+              <p className="font-semibold text-[#1A1A1A] text-sm">{cat.name}</p>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 pb-4">
+          <AdBanner variant="bottom" text="냉장고 정수기 렌탈 1위 코웨이" subtext="월 2만원대 홈케어 서비스 신청하기" icon="zap" />
         </div>
       </div>
     )

@@ -5,7 +5,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
 from app.models.vehicle import Vehicle, VehicleCheck
-from app.schemas.vehicle import VehicleCreate, VehicleCheckCreate, VehicleResponse, VehicleCheckResponse
+from app.schemas.vehicle import VehicleCreate, VehicleCheckCreate, VehicleCheckUpdate, VehicleResponse, VehicleCheckResponse
 
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
 
@@ -112,7 +112,7 @@ def delete_vehicle(
 def update_vehicle_check(
     vehicle_id: int,
     check_id: int,
-    req: VehicleCheckCreate,
+    req: VehicleCheckUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -131,7 +131,11 @@ def update_vehicle_check(
         "id": check.id,
         "vehicle_id": check.vehicle_id,
         "check_type": check.check_type,
-        "last_check_date": check.last_check_date,
-        "next_check_date": check.next_check_date,
+        "last_check_date": str(check.last_check_date) if check.last_check_date else None,
+        "next_check_date": str(check.next_check_date) if check.next_check_date else None,
+        "last_mileage": check.last_mileage,
+        "interval_mileage": check.interval_mileage,
+        "memo": check.memo,
         "days_left": check.days_left,
+        "created_at": check.created_at,
     }

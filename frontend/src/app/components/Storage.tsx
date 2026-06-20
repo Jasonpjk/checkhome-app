@@ -190,9 +190,6 @@ export function Storage({ onItemClick, initialCategory, smartFilter, onFilterCha
                 </div>
               </button>
             ))}
-            <div className="-mx-6 pt-2">
-              <AdBanner variant="bottom" text="소방 점검 전문 업체 안심119" subtext="우리 집 안전 점검 무료 상담 받아보세요" icon="shield" />
-            </div>
           </div>
         ) : (
           <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-[#E2E8F0]">
@@ -201,6 +198,9 @@ export function Storage({ onItemClick, initialCategory, smartFilter, onFilterCha
             <p className="text-xs text-[#94A3B8]">다른 필터를 선택해보세요</p>
           </div>
         )}
+        <div className="-mx-6 mt-4">
+          <AdBanner variant="bottom" text="소방 점검 전문 업체 안심119" subtext="우리 집 안전 점검 무료 상담 받아보세요" icon="shield" />
+        </div>
       </div>
     </div>
   )

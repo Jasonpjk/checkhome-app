@@ -60,7 +60,7 @@ export function Settings({ onLogout }: SettingsProps) {
         </div>
       )}
 
-      <div className="px-5 space-y-6 pb-6">
+      <div className="px-6 space-y-6 pb-6">
         <section>
           <h2 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-2">계정</h2>
           <div className="bg-white border border-[#CBD5E1] rounded-xl overflow-hidden shadow-sm">
@@ -134,7 +134,9 @@ export function Settings({ onLogout }: SettingsProps) {
         </section>
 
         {/* 가족관리 ~ 구독 섹션 사이 광고 */}
-        <AdBanner variant="mid" text="체크홈 프리미엄으로 업그레이드" subtext="가족 10명 공유 & 무제한 카테고리" icon="star" />
+        <div className="-mx-6">
+          <AdBanner variant="mid" text="체크홈 프리미엄으로 업그레이드" subtext="가족 10명 공유 & 무제한 카테고리" icon="star" />
+        </div>
 
         <section>
           <h2 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-2">구독 및 데이터</h2>
@@ -186,7 +188,9 @@ export function Settings({ onLogout }: SettingsProps) {
         </button>
 
         {/* 버전 정보 위 광고 */}
-        <AdBanner variant="bottom" text="냉장고 정수기 렌탈 1위 코웨이" subtext="월 2만원대 홈케어 서비스 신청하기" icon="zap" />
+        <div className="-mx-6">
+          <AdBanner variant="bottom" text="냉장고 정수기 렌탈 1위 코웨이" subtext="월 2만원대 홈케어 서비스 신청하기" icon="zap" />
+        </div>
 
         <div className="text-center text-xs text-gray-400">
           <p>체크홈 v1.0.0</p>

@@ -1,6 +1,7 @@
 import { ArrowLeft, CheckCircle, ChevronRight } from 'lucide-react'
 import { Vehicle, VehicleCheck, updateVehicleCheck } from '../../api/vehicles'
 import { useState } from 'react'
+import { AdBanner } from './AdBanner'
 
 interface VehicleDetailProps {
   vehicle: Vehicle
@@ -63,7 +64,11 @@ export function VehicleDetail({ vehicle, onBack }: VehicleDetailProps) {
         <p className="text-sm opacity-80 mt-1">주행거리: {vehicle.mileage.toLocaleString()} km</p>
       </div>
 
-      <div className="px-4 py-4">
+      <div className="py-4">
+        <div className="mb-4">
+          <AdBanner variant="mid" text="차량 관리 전문 엔진엔" subtext="엔진오일·타이어 교체 최저가 예약" icon="zap" />
+        </div>
+        <div className="px-4">
         <h2 className="text-base font-semibold text-[#1A1A1A] mb-3">점검 항목</h2>
         <div className="space-y-2">
           {checks.map((check) => {
@@ -95,6 +100,10 @@ export function VehicleDetail({ vehicle, onBack }: VehicleDetailProps) {
               </button>
             )
           })}
+        </div>
+        <div className="mt-4">
+          <AdBanner variant="bottom" text="자동차 보험 비교 견적" subtext="5분만에 최대 30만원 절약하세요" icon="shield" />
+        </div>
         </div>
       </div>
 

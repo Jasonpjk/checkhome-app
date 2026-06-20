@@ -152,7 +152,9 @@ export function Home({ onCategoryClick, onItemClick, onActionNeededClick, onThis
         </section>
 
         {/* 하단 광고 */}
-        <AdBanner variant="bottom" text="냉장고 정수기 렌탈 1위 코웨이" subtext="월 2만원대 홈케어 서비스 신청하기" icon="zap" />
+        <div className="-mx-6">
+          <AdBanner variant="bottom" text="냉장고 정수기 렌탈 1위 코웨이" subtext="월 2만원대 홈케어 서비스 신청하기" icon="zap" />
+        </div>
       </div>
     </div>
   )

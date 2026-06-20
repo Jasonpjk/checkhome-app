@@ -18,6 +18,15 @@ class VehicleCheckCreate(BaseModel):
     memo: Optional[str] = None
 
 
+class VehicleCheckUpdate(BaseModel):
+    check_type: Optional[str] = None
+    last_check_date: Optional[date] = None
+    next_check_date: Optional[date] = None
+    last_mileage: Optional[int] = None
+    interval_mileage: Optional[int] = None
+    memo: Optional[str] = None
+
+
 class VehicleCheckResponse(BaseModel):
     id: int
     vehicle_id: int
