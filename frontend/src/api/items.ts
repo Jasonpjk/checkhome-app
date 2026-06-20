@@ -33,11 +33,20 @@ export interface CreateItemPayload {
   expiry_date?: string
   open_date?: string
   pao_days?: number
+  photo_url?: string | null
   handler_name?: string
   is_family_shared?: boolean
   quantity?: number
   memo?: string
   risk?: string
+}
+
+export interface PhotoAnalysis {
+  name: string
+  category: string
+  expiry_date: string
+  memo: string
+  confidence: 'high' | 'medium' | 'low'
 }
 
 export async function fetchStats(): Promise<ItemStats> {
@@ -72,4 +81,9 @@ export async function deleteItem(id: number): Promise<void> {
 
 export async function recordAction(id: number, action_type: string, note?: string): Promise<void> {
   await api.post(`/items/${id}/action`, { action_type, note })
+}
+
+export async function analyzePhoto(imageBase64: string): Promise<PhotoAnalysis> {
+  const { data } = await api.post('/items/analyze-photo', { image: imageBase64 }, { timeout: 60000 })
+  return data
 }

@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ""
     KAKAO_REST_API_KEY: str = ""
     KAKAO_CLIENT_SECRET: Optional[str] = None
+    # AI 사진 자동 인식 (Claude Vision)
+    ANTHROPIC_API_KEY: Optional[str] = None
+    ANTHROPIC_MODEL: str = "claude-opus-4-8"
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

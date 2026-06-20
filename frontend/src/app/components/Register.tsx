@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Camera, ChevronLeft, CheckCircle, X } from 'lucide-react'
-import { createItem } from '../../api/items'
+import { Camera, ChevronLeft, CheckCircle, X, Sparkles, Loader2 } from 'lucide-react'
+import { createItem, analyzePhoto } from '../../api/items'
 import { getCategoryTemplates, categoryIdMap } from '../data/categoryTemplates'
 import { AdBanner } from './AdBanner'
+import { fileToCompressedDataUrl } from '../utils/image'
 
 const categories = [
   { id: 'food', name: '식품', icon: '🍎' },
@@ -23,6 +24,14 @@ interface RegisterProps {
   onRegistered?: () => void
 }
 
+// AI가 준 날짜를 YYYY-MM-DD로 정규화 (2026-3-5, 2026.03.05, 2026/3/5 등 허용)
+function normalizeDate(raw: string): string | null {
+  const m = raw?.trim().match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})$/)
+  if (!m) return null
+  const [, y, mo, d] = m
+  return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`
+}
+
 export function Register({ onRegistered }: RegisterProps) {
   const [step, setStep] = useState<'category' | 'form'>('category')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -38,9 +47,67 @@ export function Register({ onRegistered }: RegisterProps) {
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [analyzing, setAnalyzing] = useState(false)
+  const [analyzeError, setAnalyzeError] = useState('')
+  const [aiFilled, setAiFilled] = useState(false)
 
-  const handlePhotoClick = () => {
-    setPhotoPreview('https://via.placeholder.com/400x300?text=Sample+Photo')
+  const runAnalysis = async (dataUrl: string, jumpToForm: boolean) => {
+    setAnalyzing(true)
+    setAnalyzeError('')
+    setAiFilled(false)
+    try {
+      const result = await analyzePhoto(dataUrl)
+      if (result.name) setProductName(result.name)
+      const nd = normalizeDate(result.expiry_date)
+      if (nd) setExpiryDate(nd)
+      if (result.memo) setMemo(result.memo)
+      if (jumpToForm) {
+        const cat = categories.find((c) => c.name === result.category)
+        if (cat) {
+          // 카테고리를 정확히 인식했을 때만 폼으로 이동
+          setSelectedCategory(cat.id)
+          setStep('form')
+        }
+        // 인식 실패 시: 카테고리 화면에 남아 사용자가 직접 선택 (이름·기한·메모는 미리 채워둠)
+      }
+      setAiFilled(true)
+    } catch (err: any) {
+      setAnalyzeError(err?.response?.data?.detail || 'AI 분석에 실패했습니다. 직접 입력해주세요.')
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
+  const onPickPhoto = async (file: File | undefined, jumpToForm: boolean) => {
+    if (!file) return
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file)
+      // 자동 압축으로 정상 사진은 항상 작아짐. 이 안전장치는 디코딩 불가한 특수 파일만 차단.
+      if (dataUrl.length > 7_000_000) {
+        setAnalyzeError('이 사진은 처리할 수 없습니다. 다른 사진으로 다시 시도해주세요.')
+        return
+      }
+      setPhotoPreview(dataUrl)
+      await runAnalysis(dataUrl, jumpToForm)
+    } catch {
+      setAnalyzeError('사진을 불러오지 못했습니다')
+    }
+  }
+
+  const resetForm = () => {
+    setStep('category')
+    setSelectedCategory(null)
+    setProductName('')
+    setExpiryDate('')
+    setOpenDate('')
+    setPaoDays('')
+    setLocation('')
+    setQuantity('1')
+    setHandlerName('')
+    setMemo('')
+    setPhotoPreview(null)
+    setAiFilled(false)
+    setAnalyzeError('')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,6 +123,7 @@ export function Register({ onRegistered }: RegisterProps) {
         expiry_date: expiryDate || undefined,
         open_date: openDate || undefined,
         pao_days: paoDays ? parseInt(paoDays) : undefined,
+        photo_url: photoPreview || undefined,
         quantity: parseInt(quantity) || 1,
         handler_name: handlerName || undefined,
         memo: memo || undefined,
@@ -63,17 +131,7 @@ export function Register({ onRegistered }: RegisterProps) {
       setShowSuccessModal(true)
       setTimeout(() => {
         setShowSuccessModal(false)
-        setStep('category')
-        setSelectedCategory(null)
-        setProductName('')
-        setExpiryDate('')
-        setOpenDate('')
-        setPaoDays('')
-        setLocation('')
-        setQuantity('1')
-        setHandlerName('')
-        setMemo('')
-        setPhotoPreview(null)
+        resetForm()
         onRegistered?.()
       }, 2000)
     } catch (err: any) {
@@ -83,13 +141,61 @@ export function Register({ onRegistered }: RegisterProps) {
     }
   }
 
+  const analyzingOverlay = analyzing && (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-6">
+      <div className="bg-white rounded-2xl p-8 text-center shadow-2xl">
+        <Loader2 size={40} className="text-[#14B8A6] mx-auto mb-3 animate-spin" />
+        <p className="font-bold text-lg text-[#1A1A1A]">AI가 분석 중...</p>
+        <p className="text-sm text-[#64748B] mt-1">제품명·유통기한을 읽고 있어요</p>
+      </div>
+    </div>
+  )
+
   if (step === 'category') {
     return (
       <div className="h-full overflow-y-auto pb-24 bg-[#F8F9FA]">
         <div className="px-6 pt-10 pb-6">
           <h1 className="text-3xl font-bold text-[#1A1A1A] mb-2">항목 등록</h1>
-          <p className="text-sm text-[#64748B]">카테고리를 선택하세요</p>
+          <p className="text-sm text-[#64748B]">사진으로 자동 등록하거나 카테고리를 선택하세요</p>
         </div>
+
+        {/* AI 사진 자동 등록 */}
+        <div className="px-6 mb-5">
+          <label
+            className={`relative block rounded-2xl p-5 bg-gradient-to-r from-[#0D9488] to-[#14B8A6] shadow-md cursor-pointer transition-opacity ${analyzing ? 'opacity-60 pointer-events-none' : ''}`}
+          >
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto(f, true) }}
+            />
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Sparkles size={24} className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-bold">AI 사진 자동 등록</p>
+                <p className="text-white/80 text-xs mt-0.5">제품을 촬영하면 이름·유통기한을 자동 입력해요</p>
+              </div>
+              <Camera size={22} className="text-white/90 flex-shrink-0" />
+            </div>
+          </label>
+          {analyzeError && <p className="text-rose-500 text-xs mt-2 px-1">{analyzeError}</p>}
+          {aiFilled && !analyzing && (
+            <p className="text-[#14B8A6] text-xs mt-2 px-1 flex items-center gap-1">
+              <Sparkles size={12} />
+              AI가 정보를 읽었어요. 카테고리를 선택하면 자동으로 채워져요.
+            </p>
+          )}
+        </div>
+
+        <div className="px-6 flex items-center gap-3 mb-5">
+          <div className="flex-1 h-px bg-[#E2E8F0]" />
+          <span className="text-xs text-[#94A3B8]">또는 직접 선택</span>
+          <div className="flex-1 h-px bg-[#E2E8F0]" />
+        </div>
+
         <div className="px-6 grid grid-cols-2 gap-3">
           {categories.slice(0, 6).map((cat) => (
             <button
@@ -123,6 +229,8 @@ export function Register({ onRegistered }: RegisterProps) {
         <div className="mt-4 pb-4">
           <AdBanner variant="bottom" text="냉장고 정수기 렌탈 1위 코웨이" subtext="월 2만원대 홈케어 서비스 신청하기" icon="zap" />
         </div>
+
+        {analyzingOverlay}
       </div>
     )
   }
@@ -147,6 +255,49 @@ export function Register({ onRegistered }: RegisterProps) {
       </div>
 
       <form onSubmit={handleSubmit} className="px-6 py-6 space-y-6">
+        <div>
+          <label className="block text-sm font-semibold text-[#1A1A1A] mb-3">사진 첨부</label>
+          {photoPreview ? (
+            <div className="relative aspect-video bg-[#F8FAFC] rounded-xl overflow-hidden">
+              <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={() => { setPhotoPreview(null); setAiFilled(false) }}
+                className="absolute top-3 right-3 p-2 bg-white rounded-lg shadow-md"
+              >
+                <X size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={() => photoPreview && runAnalysis(photoPreview, false)}
+                className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-2 bg-white/95 text-[#14B8A6] rounded-lg shadow-md text-xs font-semibold hover:bg-white"
+              >
+                <Sparkles size={14} />
+                AI 자동입력
+              </button>
+            </div>
+          ) : (
+            <label className="w-full aspect-video bg-white border-2 border-dashed border-[#E2E8F0] rounded-xl flex flex-col items-center justify-center hover:border-[#14B8A6] hover:bg-teal-50 transition-all cursor-pointer">
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto(f, false) }}
+              />
+              <Camera size={32} className="text-[#94A3B8] mb-2" />
+              <p className="text-sm text-[#64748B] font-medium">사진 촬영 / 선택</p>
+              <p className="text-xs text-[#94A3B8] mt-1">촬영하면 AI가 자동 입력해요</p>
+            </label>
+          )}
+          {aiFilled && (
+            <p className="text-[#14B8A6] text-xs mt-2 flex items-center gap-1">
+              <Sparkles size={12} />
+              AI가 자동으로 입력했어요. 확인 후 수정하세요.
+            </p>
+          )}
+          {analyzeError && <p className="text-rose-500 text-xs mt-2">{analyzeError}</p>}
+        </div>
+
         <div>
           <label className="block text-sm font-semibold text-[#1A1A1A] mb-3">
             제품명 <span className="text-red-500">*</span>
@@ -232,31 +383,6 @@ export function Register({ onRegistered }: RegisterProps) {
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-[#1A1A1A] mb-3">사진 첨부</label>
-          {photoPreview ? (
-            <div className="relative aspect-video bg-[#F8FAFC] rounded-xl overflow-hidden">
-              <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-              <button
-                type="button"
-                onClick={() => setPhotoPreview(null)}
-                className="absolute top-3 right-3 p-2 bg-white rounded-lg shadow-md"
-              >
-                <X size={18} />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={handlePhotoClick}
-              className="w-full aspect-video bg-white border-2 border-dashed border-[#E2E8F0] rounded-xl flex flex-col items-center justify-center hover:border-[#14B8A6] hover:bg-teal-50 transition-all"
-            >
-              <Camera size={32} className="text-[#94A3B8] mb-2" />
-              <p className="text-sm text-[#64748B] font-medium">사진 선택</p>
-            </button>
-          )}
-        </div>
-
-        <div>
           <label className="block text-sm font-semibold text-[#1A1A1A] mb-3">담당자</label>
           <input
             type="text"
@@ -288,6 +414,8 @@ export function Register({ onRegistered }: RegisterProps) {
           {loading ? '저장 중...' : '저장하기'}
         </button>
       </form>
+
+      {analyzingOverlay}
 
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-6">

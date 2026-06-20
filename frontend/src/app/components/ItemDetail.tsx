@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { ArrowLeft, MapPin, User, Camera, X, Edit2, CheckCircle, Trash2, RefreshCw, Archive } from 'lucide-react'
-import { Item, recordAction, deleteItem } from '../../api/items'
+import { useState, useEffect } from 'react'
+import { ArrowLeft, MapPin, User, Camera, X, Edit2, CheckCircle, Trash2, RefreshCw, Archive, Loader2 } from 'lucide-react'
+import { Item, recordAction, deleteItem, updateItem, fetchItem } from '../../api/items'
 import { statusConfig, riskConfig } from '../data/statusConfig'
 import { AdBanner } from './AdBanner'
+import { fileToCompressedDataUrl } from '../utils/image'
 
 interface ItemDetailProps {
   item: Item
@@ -16,6 +17,40 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [actionLabel, setActionLabel] = useState('')
   const [loading, setLoading] = useState(false)
+  const [savingPhoto, setSavingPhoto] = useState(false)
+
+  // 목록 응답에는 사진이 빠져 있으므로, 상세 화면에서 사진을 따로 불러온다.
+  useEffect(() => {
+    let active = true
+    fetchItem(item.id)
+      .then((full) => { if (active && full.photo_url) setPhotoPreview(full.photo_url) })
+      .catch(() => {})
+    return () => { active = false }
+  }, [item.id])
+
+  const handlePhotoPick = async (file?: File) => {
+    if (!file) return
+    setSavingPhoto(true)
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file)
+      if (dataUrl.length > 7_000_000) return
+      setPhotoPreview(dataUrl)
+      await updateItem(item.id, { photo_url: dataUrl })
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSavingPhoto(false)
+    }
+  }
+
+  const handlePhotoRemove = async () => {
+    setPhotoPreview(null)
+    try {
+      await updateItem(item.id, { photo_url: null })
+    } catch (err) {
+      console.error(err)
+    }
+  }
 
   const statusInfo = statusConfig[item.status]
   const riskInfo = riskConfig[item.risk]
@@ -117,18 +152,26 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
             {photoPreview ? (
               <div className="relative aspect-video bg-[#F8FAFC] rounded-xl overflow-hidden">
                 <img src={photoPreview} alt="Product" className="w-full h-full object-cover" />
-                <button onClick={() => setPhotoPreview(null)} className="absolute top-3 right-3 p-2 bg-white rounded-lg shadow-lg">
+                <button onClick={handlePhotoRemove} className="absolute top-3 right-3 p-2 bg-white rounded-lg shadow-lg">
                   <X size={18} />
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => setPhotoPreview('https://via.placeholder.com/400x300')}
-                className="w-full aspect-video bg-[#F8FAFC] rounded-xl flex flex-col items-center justify-center border-2 border-dashed border-[#E2E8F0] hover:border-[#14B8A6] hover:bg-teal-50 transition-all"
-              >
-                <Camera size={32} className="text-[#94A3B8] mb-2" />
-                <span className="text-sm text-[#64748B] font-medium">사진 추가</span>
-              </button>
+              <label className="w-full aspect-video bg-[#F8FAFC] rounded-xl flex flex-col items-center justify-center border-2 border-dashed border-[#E2E8F0] hover:border-[#14B8A6] hover:bg-teal-50 transition-all cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={savingPhoto}
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; handlePhotoPick(f) }}
+                />
+                {savingPhoto ? (
+                  <Loader2 size={32} className="text-[#14B8A6] mb-2 animate-spin" />
+                ) : (
+                  <Camera size={32} className="text-[#94A3B8] mb-2" />
+                )}
+                <span className="text-sm text-[#64748B] font-medium">{savingPhoto ? '저장 중...' : '사진 추가'}</span>
+              </label>
             )}
           </div>
 

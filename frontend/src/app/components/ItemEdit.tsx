@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { ChevronLeft, CheckCircle, X, Camera } from 'lucide-react'
-import { Item, updateItem } from '../../api/items'
+import { useState, useEffect, useRef } from 'react'
+import { ChevronLeft, CheckCircle, X, Camera, Loader2 } from 'lucide-react'
+import { Item, updateItem, fetchItem } from '../../api/items'
+import { fileToCompressedDataUrl } from '../utils/image'
 
 interface ItemEditProps {
   item: Item
@@ -21,6 +22,40 @@ export function ItemEdit({ item, onBack, onSaved }: ItemEditProps) {
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [savingPhoto, setSavingPhoto] = useState(false)
+  // 사용자가 사진을 변경/삭제했을 때만 photo_url을 전송 (미변경 시 기존 사진 보존)
+  const photoDirtyRef = useRef(false)
+
+  // 목록 응답에는 사진이 빠져 있으므로, 수정 화면에서 기존 사진을 따로 불러온다.
+  useEffect(() => {
+    let active = true
+    fetchItem(item.id)
+      .then((full) => {
+        if (active && !photoDirtyRef.current && full.photo_url) setPhotoPreview(full.photo_url)
+      })
+      .catch(() => {})
+    return () => { active = false }
+  }, [item.id])
+
+  const handlePhotoPick = async (file?: File) => {
+    if (!file) return
+    setSavingPhoto(true)
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file)
+      if (dataUrl.length > 7_000_000) return
+      photoDirtyRef.current = true
+      setPhotoPreview(dataUrl)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSavingPhoto(false)
+    }
+  }
+
+  const handlePhotoRemove = () => {
+    photoDirtyRef.current = true
+    setPhotoPreview(null)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,6 +71,7 @@ export function ItemEdit({ item, onBack, onSaved }: ItemEditProps) {
         quantity: parseInt(quantity) || 1,
         handler_name: handlerName || undefined,
         memo: memo || undefined,
+        ...(photoDirtyRef.current ? { photo_url: photoPreview } : {}),
       })
       setShowSuccessModal(true)
       setTimeout(() => {
@@ -140,21 +176,28 @@ export function ItemEdit({ item, onBack, onSaved }: ItemEditProps) {
               <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
               <button
                 type="button"
-                onClick={() => setPhotoPreview(null)}
+                onClick={handlePhotoRemove}
                 className="absolute top-3 right-3 p-2 bg-white rounded-lg shadow-md"
               >
                 <X size={18} />
               </button>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => setPhotoPreview('https://via.placeholder.com/400x300?text=Photo')}
-              className="w-full aspect-video bg-white border-2 border-dashed border-[#E2E8F0] rounded-xl flex flex-col items-center justify-center hover:border-[#14B8A6] hover:bg-teal-50 transition-all"
-            >
-              <Camera size={32} className="text-[#94A3B8] mb-2" />
-              <p className="text-sm text-[#64748B] font-medium">사진 선택</p>
-            </button>
+            <label className="w-full aspect-video bg-white border-2 border-dashed border-[#E2E8F0] rounded-xl flex flex-col items-center justify-center hover:border-[#14B8A6] hover:bg-teal-50 transition-all cursor-pointer">
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={savingPhoto}
+                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; handlePhotoPick(f) }}
+              />
+              {savingPhoto ? (
+                <Loader2 size={32} className="text-[#14B8A6] mb-2 animate-spin" />
+              ) : (
+                <Camera size={32} className="text-[#94A3B8] mb-2" />
+              )}
+              <p className="text-sm text-[#64748B] font-medium">{savingPhoto ? '처리 중...' : '사진 선택'}</p>
+            </label>
           )}
         </div>
 
