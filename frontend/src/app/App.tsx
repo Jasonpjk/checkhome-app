@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Home as HomeIcon, Archive, PlusCircle, Car, Settings as SettingsIcon } from 'lucide-react'
 import { Onboarding } from './components/Onboarding'
 import { Login } from './components/Login'
@@ -44,6 +44,37 @@ export default function App() {
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleType | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [smartFilter, setSmartFilter] = useState<SmartFilter>(null)
+  // 등록 후 보관함을 강제로 다시 불러오기 위한 키 (값이 바뀌면 Storage가 재마운트되어 refetch)
+  const [storageRefreshKey, setStorageRefreshKey] = useState(0)
+
+  // ── 휴대폰 뒤로가기(하드웨어/제스처) 처리 ──
+  // SPA라 상세/수정/필터 화면이 브라우저 history를 안 쌓아, 뒤로가기가 앱을 종료시키는 문제를 막는다.
+  // 서브화면이 열려있는 깊이만큼 history 엔트리를 유지하고, 뒤로가기(popstate) 시 최상위 화면 하나만 닫는다.
+  const filteredStorage =
+    !selectedItem && !editingItem && !selectedVehicle &&
+    activeTab === 'storage' && (!!selectedCategory || !!smartFilter)
+  const overlayDepth =
+    (filteredStorage ? 1 : 0) +
+    ((selectedItem || selectedVehicle) ? 1 : 0) +
+    (editingItem ? 1 : 0)
+
+  const closeTopRef = useRef<() => void>(() => {})
+  closeTopRef.current = () => {
+    if (editingItem) setEditingItem(null)
+    else if (selectedVehicle) setSelectedVehicle(null)
+    else if (selectedItem) setSelectedItem(null)
+    else if (filteredStorage) { setSelectedCategory(null); setSmartFilter(null); setActiveTab('home') }
+  }
+  const skipNextPushRef = useRef(false)
+  useEffect(() => {
+    if (overlayDepth === 0) return
+    // popstate로 화면을 닫은 직후엔 엔트리가 이미 소비됐으므로 중복 push를 한 번 건너뛴다.
+    if (skipNextPushRef.current) skipNextPushRef.current = false
+    else window.history.pushState({ chOverlay: true }, '')
+    const onPop = () => { skipNextPushRef.current = true; closeTopRef.current() }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [overlayDepth])
 
   useEffect(() => {
     if (!hasOAuthParams()) return
@@ -109,10 +140,10 @@ export default function App() {
         <div className="h-screen w-full max-w-md shadow-2xl">
           <ItemEdit
             item={editingItem}
-            onBack={() => setEditingItem(null)}
+            onBack={() => window.history.back()}
             onSaved={(updated) => {
               setSelectedItem(updated)
-              setEditingItem(null)
+              window.history.back()
             }}
           />
         </div>
@@ -126,7 +157,7 @@ export default function App() {
         <div className="h-screen w-full max-w-md shadow-2xl">
           <VehicleDetail
             vehicle={selectedVehicle}
-            onBack={() => setSelectedVehicle(null)}
+            onBack={() => window.history.back()}
           />
         </div>
       </div>
@@ -139,9 +170,9 @@ export default function App() {
         <div className="h-screen w-full max-w-md shadow-2xl">
           <ItemDetail
             item={selectedItem}
-            onBack={() => setSelectedItem(null)}
+            onBack={() => window.history.back()}
             onEdit={() => setEditingItem(selectedItem)}
-            onDeleted={() => { setSelectedItem(null); setActiveTab('storage') }}
+            onDeleted={() => { window.history.back(); setActiveTab('storage'); setStorageRefreshKey((k) => k + 1) }}
           />
         </div>
       </div>
@@ -182,6 +213,7 @@ export default function App() {
           )}
           {activeTab === 'storage' && (
             <Storage
+              key={storageRefreshKey}
               onItemClick={(item) => setSelectedItem(item)}
               initialCategory={selectedCategory}
               smartFilter={smartFilter}
@@ -190,7 +222,14 @@ export default function App() {
           )}
           {activeTab === 'register' && (
             <Register
-              onRegistered={() => setActiveTab('storage')}
+              onRegistered={() => {
+                // 등록 직후: 직전 카테고리/스마트필터를 비워 방금 등록한 항목이 가려지지 않게 하고,
+                // 보관함을 강제로 다시 불러온다(stale 목록 방지).
+                setSelectedCategory(null)
+                setSmartFilter(null)
+                setStorageRefreshKey((k) => k + 1)
+                setActiveTab('storage')
+              }}
             />
           )}
           {activeTab === 'vehicle' && (

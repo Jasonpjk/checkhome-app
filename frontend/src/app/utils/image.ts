@@ -26,10 +26,11 @@ function render(img: HTMLImageElement, maxSize: number, quality: number): string
 
 export async function fileToCompressedDataUrl(
   file: File,
-  maxSize = 1280,
-  quality = 0.8,
-  // data URL 문자열 목표 길이(약 0.9MB 이미지). 이 이하가 될 때까지 자동으로 더 압축.
-  targetChars = 1_200_000
+  // 작은 글씨(유통기한·제품명) OCR 정확도를 위해 해상도를 충분히 크게 유지.
+  maxSize = 1600,
+  quality = 0.85,
+  // data URL 문자열 목표 길이(약 1.5MB 이미지). 백엔드 5MB/프론트 7MB 가드 안에서 글자 가독성 우선.
+  targetChars = 2_000_000
 ): Promise<string> {
   const originalDataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
@@ -52,14 +53,15 @@ export async function fileToCompressedDataUrl(
     if (!out) return originalDataUrl
 
     // 목표 용량을 넘으면: 먼저 화질을 낮추고, 더 필요하면 해상도를 줄여가며 반복.
+    // 단, 글자 가독성을 위해 화질 하한 0.6, 해상도 하한 1000px로 너무 뭉개지지 않게 제한.
     let guard = 0
     while (out.length > targetChars && guard < 8) {
-      if (q > 0.45) {
-        q = Math.max(0.4, q - 0.15)
+      if (q > 0.6) {
+        q = Math.max(0.6, q - 0.1)
       } else {
-        dims = Math.round(dims * 0.8)
-        q = 0.6
-        if (dims < 640) break
+        dims = Math.round(dims * 0.85)
+        q = 0.7
+        if (dims < 1000) break
       }
       const next = render(img, dims, q)
       if (!next) break

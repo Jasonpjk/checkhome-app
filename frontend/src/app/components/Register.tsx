@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Camera, ChevronLeft, CheckCircle, X, Sparkles, Loader2, Image, RotateCcw } from 'lucide-react'
+import { Camera, ChevronLeft, CheckCircle, X, Sparkles, Loader2, Image } from 'lucide-react'
 import { createItem, analyzePhoto } from '../../api/items'
 import { getCategoryTemplates, categoryIdMap } from '../data/categoryTemplates'
 import { AdBanner } from './AdBanner'
@@ -45,8 +45,9 @@ export function Register({ onRegistered }: RegisterProps) {
   const [quantity, setQuantity] = useState('1')
   const [handlerName, setHandlerName] = useState(user?.name || '')
   const [memo, setMemo] = useState('')
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null)   // 앞면
-  const [photoPreview2, setPhotoPreview2] = useState<string | null>(null) // 뒷면 (선택)
+  // 제품 사진 여러 장 (포장 형태에 따라 1장~여러 장). 첫 장이 대표 사진으로 저장됨.
+  const [photos, setPhotos] = useState<string[]>([])
+  const MAX_PHOTOS = 5
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -55,14 +56,14 @@ export function Register({ onRegistered }: RegisterProps) {
   const [aiNote, setAiNote] = useState('')
   const [aiNoteWarn, setAiNoteWarn] = useState(false)
 
-  const runAnalysis = async (dataUrl: string, jumpToForm: boolean, dataUrl2?: string) => {
+  const runAnalysis = async (photoList: string[], jumpToForm: boolean) => {
+    if (photoList.length === 0) return
     setAnalyzing(true)
     setAnalyzeError('')
     setAiNote('')
     setAiNoteWarn(false)
     try {
-      const images = dataUrl2 ? [dataUrl, dataUrl2] : dataUrl
-      const result = await analyzePhoto(images)
+      const result = await analyzePhoto(photoList)
       if (result.name) setProductName(result.name)
       const nd = normalizeDate(result.expiry_date)
       if (nd) setExpiryDate(nd)
@@ -105,36 +106,75 @@ export function Register({ onRegistered }: RegisterProps) {
     }
   }
 
-  const onPickPhoto = async (file: File | undefined, jumpToForm: boolean) => {
+  // 사진 추가(첫 장이든 추가 장이든 동일). 추가 후 전체 사진으로 다시 분석.
+  const addPhoto = async (file: File | undefined, jumpToForm: boolean) => {
     if (!file) return
+    if (photos.length >= MAX_PHOTOS) {
+      setAnalyzeError(`사진은 최대 ${MAX_PHOTOS}장까지 추가할 수 있어요.`)
+      return
+    }
     try {
       const dataUrl = await fileToCompressedDataUrl(file)
       if (dataUrl.length > 7_000_000) {
         setAnalyzeError('이 사진은 처리할 수 없습니다. 다른 사진으로 다시 시도해주세요.')
         return
       }
-      setPhotoPreview(dataUrl)
-      setPhotoPreview2(null) // 앞면 바꾸면 뒷면 초기화
-      await runAnalysis(dataUrl, jumpToForm)
+      const next = [...photos, dataUrl]
+      setPhotos(next)
+      await runAnalysis(next, jumpToForm)
     } catch {
       setAnalyzeError('사진을 불러오지 못했습니다')
     }
   }
 
-  const onPickPhoto2 = async (file: File | undefined) => {
-    if (!file || !photoPreview) return
-    try {
-      const dataUrl2 = await fileToCompressedDataUrl(file)
-      if (dataUrl2.length > 7_000_000) {
-        setAnalyzeError('이 사진은 처리할 수 없습니다.')
-        return
-      }
-      setPhotoPreview2(dataUrl2)
-      await runAnalysis(photoPreview, step === 'category', dataUrl2)
-    } catch {
-      setAnalyzeError('사진을 불러오지 못했습니다')
+  const removePhoto = (index: number) => {
+    const next = photos.filter((_, i) => i !== index)
+    setPhotos(next)
+    if (next.length === 0) {
+      setAiNote('')
+      setAiNoteWarn(false)
     }
   }
+
+  // 카메라/갤러리 버튼 + 추가한 사진 썸네일 그리드 (카테고리·폼 두 단계 공용)
+  const PhotoPicker = ({ jumpToForm, dark }: { jumpToForm: boolean; dark?: boolean }) => (
+    <div>
+      {photos.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-2">
+          {photos.map((p, i) => (
+            <div key={i} className="relative w-16 h-16">
+              <img src={p} className={`w-16 h-16 object-cover rounded-lg border ${dark ? 'border-white/40' : 'border-[#E2E8F0]'}`} alt={`사진 ${i + 1}`} />
+              <button type="button" onClick={() => removePhoto(i)}
+                className="absolute -top-1.5 -right-1.5 bg-white rounded-full shadow p-0.5 border border-[#E2E8F0]">
+                <X size={12} className="text-[#475569]" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {photos.length < MAX_PHOTOS && (
+        <div className="grid grid-cols-2 gap-2">
+          <label className={`flex items-center justify-center gap-2 rounded-xl py-3 cursor-pointer transition-colors ${dark ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-white border-2 border-dashed border-[#E2E8F0] hover:border-[#14B8A6] hover:bg-teal-50 text-[#64748B]'}`}>
+            <input type="file" accept="image/*" capture="environment" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; addPhoto(f, jumpToForm) }} />
+            <Camera size={18} className={dark ? 'text-white' : 'text-[#94A3B8]'} />
+            <span className="text-sm font-semibold">{photos.length === 0 ? '카메라 촬영' : '촬영 추가'}</span>
+          </label>
+          <label className={`flex items-center justify-center gap-2 rounded-xl py-3 cursor-pointer transition-colors ${dark ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-white border-2 border-dashed border-[#E2E8F0] hover:border-[#14B8A6] hover:bg-teal-50 text-[#64748B]'}`}>
+            <input type="file" accept="image/*" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; addPhoto(f, jumpToForm) }} />
+            <Image size={18} className={dark ? 'text-white' : 'text-[#94A3B8]'} />
+            <span className="text-sm font-semibold">{photos.length === 0 ? '갤러리 선택' : '갤러리 추가'}</span>
+          </label>
+        </div>
+      )}
+      {photos.length > 0 && photos.length < MAX_PHOTOS && (
+        <p className={`text-xs mt-1.5 ${dark ? 'text-white/70' : 'text-[#94A3B8]'}`}>
+          제품명·유통기한이 다른 면에 있으면 사진을 더 추가하면 AI가 더 정확히 읽어요
+        </p>
+      )}
+    </div>
+  )
 
   const resetForm = () => {
     setStep('category')
@@ -147,8 +187,7 @@ export function Register({ onRegistered }: RegisterProps) {
     setQuantity('1')
     setHandlerName(user?.name || '')
     setMemo('')
-    setPhotoPreview(null)
-    setPhotoPreview2(null)
+    setPhotos([])
     setAiNote('')
     setAiNoteWarn(false)
     setAnalyzeError('')
@@ -167,7 +206,7 @@ export function Register({ onRegistered }: RegisterProps) {
         expiry_date: expiryDate || undefined,
         open_date: openDate || undefined,
         pao_days: paoDays ? parseInt(paoDays) : undefined,
-        photo_url: photoPreview || undefined,
+        photo_url: photos[0] || undefined,
         quantity: parseInt(quantity) || 1,
         handler_name: handlerName || undefined,
         memo: memo || undefined,
@@ -215,19 +254,8 @@ export function Register({ onRegistered }: RegisterProps) {
                 <p className="text-white/80 text-xs mt-0.5">제품을 촬영하면 이름·유통기한을 자동 입력해요</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 px-4 pb-4">
-              <label className="flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 active:bg-white/40 rounded-xl py-3 cursor-pointer transition-colors">
-                <input type="file" accept="image/*" capture="environment" className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto(f, true) }} />
-                <Camera size={18} className="text-white" />
-                <span className="text-white text-sm font-semibold">카메라 촬영</span>
-              </label>
-              <label className="flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 active:bg-white/40 rounded-xl py-3 cursor-pointer transition-colors">
-                <input type="file" accept="image/*" className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto(f, true) }} />
-                <Image size={18} className="text-white" />
-                <span className="text-white text-sm font-semibold">갤러리 선택</span>
-              </label>
+            <div className="px-4 pb-4">
+              <PhotoPicker jumpToForm dark />
             </div>
           </div>
           {analyzeError && <p className="text-rose-500 text-xs mt-2 px-1">{analyzeError}</p>}
@@ -236,35 +264,6 @@ export function Register({ onRegistered }: RegisterProps) {
               <Sparkles size={12} className="flex-shrink-0" />
               {aiNote}
             </p>
-          )}
-          {/* 앞면 찍은 뒤 뒷면 추가 옵션 */}
-          {photoPreview && !analyzing && (
-            <div className="mt-3 flex items-center gap-2">
-              {photoPreview2 ? (
-                <>
-                  <div className="flex gap-2">
-                    <img src={photoPreview} className="w-14 h-14 object-cover rounded-lg border border-[#E2E8F0]" alt="앞면" />
-                    <img src={photoPreview2} className="w-14 h-14 object-cover rounded-lg border border-[#14B8A6]" alt="뒷면" />
-                  </div>
-                  <label className="flex items-center gap-1 text-xs text-[#14B8A6] font-medium cursor-pointer">
-                    <input type="file" accept="image/*" capture="environment" className="hidden"
-                      onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto2(f) }} />
-                    <RotateCcw size={12} />
-                    뒷면 다시 찍기
-                  </label>
-                </>
-              ) : (
-                <>
-                  <img src={photoPreview} className="w-14 h-14 object-cover rounded-lg border border-[#E2E8F0]" alt="앞면" />
-                  <label className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-[#14B8A6] text-[#14B8A6] rounded-xl py-2.5 cursor-pointer text-xs font-semibold hover:bg-teal-50 transition-colors">
-                    <input type="file" accept="image/*" capture="environment" className="hidden"
-                      onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto2(f) }} />
-                    <Camera size={14} />
-                    뒷면도 찍어서 더 정확히 인식하기
-                  </label>
-                </>
-              )}
-            </div>
           )}
         </div>
 
@@ -335,66 +334,16 @@ export function Register({ onRegistered }: RegisterProps) {
       <form onSubmit={handleSubmit} className="px-6 py-6 space-y-6">
         <div>
           <label className="block text-sm font-semibold text-[#1A1A1A] mb-3">사진 첨부</label>
-          {photoPreview ? (
-            <div className="relative aspect-video bg-[#F8FAFC] rounded-xl overflow-hidden">
-              <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-              <button
-                type="button"
-                onClick={() => { setPhotoPreview(null); setPhotoPreview2(null); setAiNote(''); setAiNoteWarn(false) }}
-                className="absolute top-3 right-3 p-2 bg-white rounded-lg shadow-md"
-              >
-                <X size={18} />
-              </button>
-              <button
-                type="button"
-                onClick={() => photoPreview && runAnalysis(photoPreview, false, photoPreview2 ?? undefined)}
-                className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-2 bg-white/95 text-[#14B8A6] rounded-lg shadow-md text-xs font-semibold hover:bg-white"
-              >
-                <Sparkles size={14} />
-                AI 자동입력
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col items-center justify-center gap-2 bg-white border-2 border-dashed border-[#E2E8F0] rounded-xl py-6 hover:border-[#14B8A6] hover:bg-teal-50 transition-all cursor-pointer">
-                <input type="file" accept="image/*" capture="environment" className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto(f, false) }} />
-                <Camera size={28} className="text-[#94A3B8]" />
-                <p className="text-xs text-[#64748B] font-medium">카메라 촬영</p>
-              </label>
-              <label className="flex flex-col items-center justify-center gap-2 bg-white border-2 border-dashed border-[#E2E8F0] rounded-xl py-6 hover:border-[#14B8A6] hover:bg-teal-50 transition-all cursor-pointer">
-                <input type="file" accept="image/*" className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto(f, false) }} />
-                <Image size={28} className="text-[#94A3B8]" />
-                <p className="text-xs text-[#64748B] font-medium">갤러리 선택</p>
-              </label>
-            </div>
-          )}
-          {/* 폼 단계: 앞면 찍은 뒤 뒷면 추가 */}
-          {photoPreview && !analyzing && (
-            <div className="mt-2">
-              {photoPreview2 ? (
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs text-[#64748B]">뒷면 사진 추가됨</span>
-                  <label className="flex items-center gap-1 text-xs text-[#14B8A6] font-medium cursor-pointer">
-                    <input type="file" accept="image/*" capture="environment" className="hidden"
-                      onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto2(f) }} />
-                    <RotateCcw size={11} />
-                    다시 찍기
-                  </label>
-                </div>
-              ) : (
-                <label className="flex items-center gap-2 mt-2 border border-dashed border-[#14B8A6] rounded-xl px-3 py-2.5 cursor-pointer hover:bg-teal-50 transition-colors">
-                  <input type="file" accept="image/*" capture="environment" className="hidden"
-                    onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto2(f) }} />
-                  <Camera size={16} className="text-[#14B8A6] flex-shrink-0" />
-                  <div>
-                    <p className="text-xs font-semibold text-[#14B8A6]">뒷면도 찍기 (유통기한)</p>
-                    <p className="text-xs text-[#94A3B8]">앞면+뒷면으로 AI가 더 정확히 읽어요</p>
-                  </div>
-                </label>
-              )}
-            </div>
+          <PhotoPicker jumpToForm={false} />
+          {photos.length > 0 && !analyzing && (
+            <button
+              type="button"
+              onClick={() => runAnalysis(photos, false)}
+              className="mt-3 flex items-center gap-1.5 px-3 py-2 bg-teal-50 text-[#14B8A6] rounded-lg text-xs font-semibold hover:bg-teal-100 transition-colors"
+            >
+              <Sparkles size={14} />
+              AI로 다시 분석
+            </button>
           )}
           {aiNote && (
             <p className={`text-xs mt-2 flex items-center gap-1 ${aiNoteWarn ? 'text-amber-600' : 'text-[#14B8A6]'}`}>
