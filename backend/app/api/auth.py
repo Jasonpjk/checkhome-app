@@ -21,7 +21,7 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     token = create_access_token({"sub": str(user.id)})
-    return TokenResponse(access_token=token, user_id=user.id, name=user.name, email=user.email)
+    return TokenResponse(access_token=token, user_id=user.id, name=user.name, email=user.email, is_admin=user.is_admin)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -30,4 +30,4 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     if not user or not verify_password(req.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="이메일 또는 비밀번호가 잘못되었습니다")
     token = create_access_token({"sub": str(user.id)})
-    return TokenResponse(access_token=token, user_id=user.id, name=user.name, email=user.email)
+    return TokenResponse(access_token=token, user_id=user.id, name=user.name, email=user.email, is_admin=user.is_admin)

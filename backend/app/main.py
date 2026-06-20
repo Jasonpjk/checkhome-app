@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import Base, engine
-from app.api import auth, items, vehicles, families
+from app.api import auth, items, vehicles, families, admin
 import app.models  # noqa: F401 - ensure models are registered
 
 Base.metadata.create_all(bind=engine)
@@ -25,6 +25,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(items.router, prefix="/api")
 app.include_router(vehicles.router, prefix="/api")
 app.include_router(families.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
 
 
 @app.get("/")
