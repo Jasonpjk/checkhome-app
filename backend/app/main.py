@@ -1,11 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.core.database import Base, engine
 from app.api import auth, items, vehicles, families, admin
 import app.models  # noqa: F401 - ensure models are registered
-
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="체크홈 API",
