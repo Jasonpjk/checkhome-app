@@ -83,7 +83,9 @@ export async function recordAction(id: number, action_type: string, note?: strin
   await api.post(`/items/${id}/action`, { action_type, note })
 }
 
-export async function analyzePhoto(imageBase64: string): Promise<PhotoAnalysis> {
-  const { data } = await api.post('/items/analyze-photo', { image: imageBase64 }, { timeout: 60000 })
+export async function analyzePhoto(images: string | string[]): Promise<PhotoAnalysis> {
+  const list = Array.isArray(images) ? images : [images]
+  const payload = list.length === 1 ? { image: list[0] } : { images: list }
+  const { data } = await api.post('/items/analyze-photo', payload, { timeout: 60000 })
   return data
 }

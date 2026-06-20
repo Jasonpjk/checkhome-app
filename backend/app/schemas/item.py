@@ -1,6 +1,6 @@
 from pydantic import BaseModel, field_validator
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, List
 
 # data URL 문자열 안전 상한 (약 5MB 디코딩 분량). 정상 사진은 프론트 자동 압축으로 훨씬 작음.
 MAX_PHOTO_CHARS = 7_000_000
@@ -61,8 +61,10 @@ class ActionRequest(BaseModel):
 
 
 class PhotoAnalyzeRequest(BaseModel):
-    # data URL ("data:image/jpeg;base64,...") 또는 순수 base64 문자열
-    image: str
+    # 단일 이미지 (하위 호환)
+    image: Optional[str] = None
+    # 복수 이미지 (앞면 + 뒷면 등 최대 2장)
+    images: Optional[List[str]] = None
 
 
 class PhotoAnalyzeResponse(BaseModel):

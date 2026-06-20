@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Camera, ChevronLeft, CheckCircle, X, Sparkles, Loader2, Image } from 'lucide-react'
+import { Camera, ChevronLeft, CheckCircle, X, Sparkles, Loader2, Image, RotateCcw } from 'lucide-react'
 import { createItem, analyzePhoto } from '../../api/items'
 import { getCategoryTemplates, categoryIdMap } from '../data/categoryTemplates'
 import { AdBanner } from './AdBanner'
 import { fileToCompressedDataUrl } from '../utils/image'
+import { useAuthStore } from '../../store/authStore'
 
 const categories = [
   { id: 'food', name: '식품', icon: '🍎' },
@@ -33,6 +34,7 @@ function normalizeDate(raw: string): string | null {
 }
 
 export function Register({ onRegistered }: RegisterProps) {
+  const { user } = useAuthStore()
   const [step, setStep] = useState<'category' | 'form'>('category')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [productName, setProductName] = useState('')
@@ -41,9 +43,10 @@ export function Register({ onRegistered }: RegisterProps) {
   const [paoDays, setPaoDays] = useState('')
   const [location, setLocation] = useState('')
   const [quantity, setQuantity] = useState('1')
-  const [handlerName, setHandlerName] = useState('')
+  const [handlerName, setHandlerName] = useState(user?.name || '')
   const [memo, setMemo] = useState('')
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)   // 앞면
+  const [photoPreview2, setPhotoPreview2] = useState<string | null>(null) // 뒷면 (선택)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -52,13 +55,14 @@ export function Register({ onRegistered }: RegisterProps) {
   const [aiNote, setAiNote] = useState('')
   const [aiNoteWarn, setAiNoteWarn] = useState(false)
 
-  const runAnalysis = async (dataUrl: string, jumpToForm: boolean) => {
+  const runAnalysis = async (dataUrl: string, jumpToForm: boolean, dataUrl2?: string) => {
     setAnalyzing(true)
     setAnalyzeError('')
     setAiNote('')
     setAiNoteWarn(false)
     try {
-      const result = await analyzePhoto(dataUrl)
+      const images = dataUrl2 ? [dataUrl, dataUrl2] : dataUrl
+      const result = await analyzePhoto(images)
       if (result.name) setProductName(result.name)
       const nd = normalizeDate(result.expiry_date)
       if (nd) setExpiryDate(nd)
@@ -105,13 +109,28 @@ export function Register({ onRegistered }: RegisterProps) {
     if (!file) return
     try {
       const dataUrl = await fileToCompressedDataUrl(file)
-      // 자동 압축으로 정상 사진은 항상 작아짐. 이 안전장치는 디코딩 불가한 특수 파일만 차단.
       if (dataUrl.length > 7_000_000) {
         setAnalyzeError('이 사진은 처리할 수 없습니다. 다른 사진으로 다시 시도해주세요.')
         return
       }
       setPhotoPreview(dataUrl)
+      setPhotoPreview2(null) // 앞면 바꾸면 뒷면 초기화
       await runAnalysis(dataUrl, jumpToForm)
+    } catch {
+      setAnalyzeError('사진을 불러오지 못했습니다')
+    }
+  }
+
+  const onPickPhoto2 = async (file: File | undefined) => {
+    if (!file || !photoPreview) return
+    try {
+      const dataUrl2 = await fileToCompressedDataUrl(file)
+      if (dataUrl2.length > 7_000_000) {
+        setAnalyzeError('이 사진은 처리할 수 없습니다.')
+        return
+      }
+      setPhotoPreview2(dataUrl2)
+      await runAnalysis(photoPreview, step === 'category', dataUrl2)
     } catch {
       setAnalyzeError('사진을 불러오지 못했습니다')
     }
@@ -126,9 +145,10 @@ export function Register({ onRegistered }: RegisterProps) {
     setPaoDays('')
     setLocation('')
     setQuantity('1')
-    setHandlerName('')
+    setHandlerName(user?.name || '')
     setMemo('')
     setPhotoPreview(null)
+    setPhotoPreview2(null)
     setAiNote('')
     setAiNoteWarn(false)
     setAnalyzeError('')
@@ -217,6 +237,35 @@ export function Register({ onRegistered }: RegisterProps) {
               {aiNote}
             </p>
           )}
+          {/* 앞면 찍은 뒤 뒷면 추가 옵션 */}
+          {photoPreview && !analyzing && (
+            <div className="mt-3 flex items-center gap-2">
+              {photoPreview2 ? (
+                <>
+                  <div className="flex gap-2">
+                    <img src={photoPreview} className="w-14 h-14 object-cover rounded-lg border border-[#E2E8F0]" alt="앞면" />
+                    <img src={photoPreview2} className="w-14 h-14 object-cover rounded-lg border border-[#14B8A6]" alt="뒷면" />
+                  </div>
+                  <label className="flex items-center gap-1 text-xs text-[#14B8A6] font-medium cursor-pointer">
+                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto2(f) }} />
+                    <RotateCcw size={12} />
+                    뒷면 다시 찍기
+                  </label>
+                </>
+              ) : (
+                <>
+                  <img src={photoPreview} className="w-14 h-14 object-cover rounded-lg border border-[#E2E8F0]" alt="앞면" />
+                  <label className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-[#14B8A6] text-[#14B8A6] rounded-xl py-2.5 cursor-pointer text-xs font-semibold hover:bg-teal-50 transition-colors">
+                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto2(f) }} />
+                    <Camera size={14} />
+                    뒷면도 찍어서 더 정확히 인식하기
+                  </label>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="px-6 flex items-center gap-3 mb-5">
@@ -291,14 +340,14 @@ export function Register({ onRegistered }: RegisterProps) {
               <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
               <button
                 type="button"
-                onClick={() => { setPhotoPreview(null); setAiNote(''); setAiNoteWarn(false) }}
+                onClick={() => { setPhotoPreview(null); setPhotoPreview2(null); setAiNote(''); setAiNoteWarn(false) }}
                 className="absolute top-3 right-3 p-2 bg-white rounded-lg shadow-md"
               >
                 <X size={18} />
               </button>
               <button
                 type="button"
-                onClick={() => photoPreview && runAnalysis(photoPreview, false)}
+                onClick={() => photoPreview && runAnalysis(photoPreview, false, photoPreview2 ?? undefined)}
                 className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-2 bg-white/95 text-[#14B8A6] rounded-lg shadow-md text-xs font-semibold hover:bg-white"
               >
                 <Sparkles size={14} />
@@ -319,6 +368,32 @@ export function Register({ onRegistered }: RegisterProps) {
                 <Image size={28} className="text-[#94A3B8]" />
                 <p className="text-xs text-[#64748B] font-medium">갤러리 선택</p>
               </label>
+            </div>
+          )}
+          {/* 폼 단계: 앞면 찍은 뒤 뒷면 추가 */}
+          {photoPreview && !analyzing && (
+            <div className="mt-2">
+              {photoPreview2 ? (
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs text-[#64748B]">뒷면 사진 추가됨</span>
+                  <label className="flex items-center gap-1 text-xs text-[#14B8A6] font-medium cursor-pointer">
+                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto2(f) }} />
+                    <RotateCcw size={11} />
+                    다시 찍기
+                  </label>
+                </div>
+              ) : (
+                <label className="flex items-center gap-2 mt-2 border border-dashed border-[#14B8A6] rounded-xl px-3 py-2.5 cursor-pointer hover:bg-teal-50 transition-colors">
+                  <input type="file" accept="image/*" capture="environment" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto2(f) }} />
+                  <Camera size={16} className="text-[#14B8A6] flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-[#14B8A6]">뒷면도 찍기 (유통기한)</p>
+                    <p className="text-xs text-[#94A3B8]">앞면+뒷면으로 AI가 더 정확히 읽어요</p>
+                  </div>
+                </label>
+              )}
             </div>
           )}
           {aiNote && (

@@ -24,6 +24,25 @@ CATEGORY_ENUM = [
     "육아용품", "반려동물", "비상용품", "문서/보증서", "캠핑용품", "정원용품",
 ]
 
+# 카테고리별 위험도 자동 계산 (알림 빈도 기준)
+# high: 건강·안전 직결 → D-90/30/7/1/당일/초과
+# medium: 정기 교체 필요 → D-30/7/1/당일
+# low: 보관성 높음 → D-30/7/월간
+CATEGORY_RISK = {
+    "식품": "high",       # 변질 시 건강 위험
+    "약품": "high",       # 복용 안전 중요
+    "육아용품": "high",   # 아기 용품 안전 기준 엄격
+    "비상용품": "high",   # 긴급 상황 대비품
+    "차량": "high",       # 주행 안전 직결
+    "욕실/화장품": "medium",
+    "세제/청소": "medium",
+    "필터/가전": "medium",
+    "반려동물": "medium",
+    "문서/보증서": "low",
+    "캠핑용품": "low",
+    "정원용품": "low",
+}
+
 PHOTO_EXTRACT_SCHEMA = {
     "type": "object",
     "properties": {
@@ -48,8 +67,19 @@ PHOTO_SYSTEM_PROMPT = (
 )
 
 
-def _extract_with_model(client, model: str, media_type: str, b64: str):
-    """주어진 모델로 사진에서 제품 정보를 추출. 실패하면 None 반환(상위에서 폴백/에러 처리)."""
+def _extract_with_model(client, model: str, image_list: list):
+    """주어진 모델로 사진에서 제품 정보를 추출. image_list: [(media_type, b64), ...]
+    실패하면 None 반환(상위에서 폴백/에러 처리)."""
+    image_blocks = [
+        {"type": "image", "source": {"type": "base64", "media_type": mt, "data": b64}}
+        for mt, b64 in image_list
+    ]
+    user_text = (
+        "두 장의 사진을 종합해 제품 정보를 추출하세요. "
+        "첫 번째 사진은 제품 앞면(제품명), 두 번째 사진은 뒷면(유통기한)입니다."
+        if len(image_list) > 1
+        else "이 제품 사진을 분석해 정보를 추출하세요."
+    )
     try:
         message = client.messages.create(
             model=model,
@@ -63,10 +93,7 @@ def _extract_with_model(client, model: str, media_type: str, b64: str):
             tool_choice={"type": "tool", "name": "extract_product"},
             messages=[{
                 "role": "user",
-                "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": b64}},
-                    {"type": "text", "text": "이 제품 사진을 분석해 정보를 추출하세요."},
-                ],
+                "content": image_blocks + [{"type": "text", "text": user_text}],
             }],
         )
     except Exception:
@@ -123,7 +150,14 @@ def create_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    item = Item(user_id=current_user.id, **req.model_dump())
+    data = req.model_dump()
+    # 담당자 미지정 시 로그인한 사용자 이름을 기본값으로
+    if not data.get("handler_name"):
+        data["handler_name"] = current_user.name
+    # 위험도 미지정 또는 medium 기본값이면 카테고리 기준으로 자동 계산
+    if data.get("risk") == "medium":
+        data["risk"] = CATEGORY_RISK.get(data.get("category", ""), "medium")
+    item = Item(user_id=current_user.id, **data)
     db.add(item)
     db.commit()
     db.refresh(item)
@@ -138,20 +172,25 @@ def analyze_photo(
     if not settings.ANTHROPIC_API_KEY:
         raise HTTPException(status_code=503, detail="AI 사진 분석 기능이 아직 설정되지 않았습니다")
 
-    m = re.match(r"^data:(image/[a-zA-Z0-9.+-]+);base64,(.+)$", req.image, re.DOTALL)
-    if m:
-        media_type, b64 = m.group(1), m.group(2)
-    else:
-        media_type, b64 = "image/jpeg", req.image
+    # 단일(image) 또는 복수(images) 모두 지원
+    raw_list = req.images if req.images else ([req.image] if req.image else [])
+    if not raw_list:
+        raise HTTPException(status_code=400, detail="이미지가 없습니다")
 
-    try:
-        decoded = base64.b64decode(b64, validate=True)
-    except Exception:
-        raise HTTPException(status_code=400, detail="이미지 형식이 올바르지 않습니다")
-    if len(decoded) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="이미지가 너무 큽니다 (최대 5MB)")
-    if media_type not in ("image/jpeg", "image/png", "image/webp", "image/gif"):
-        media_type = "image/jpeg"
+    def _parse_image(raw: str):
+        m = re.match(r"^data:(image/[a-zA-Z0-9.+-]+);base64,(.+)$", raw, re.DOTALL)
+        mt, b64 = (m.group(1), m.group(2)) if m else ("image/jpeg", raw)
+        try:
+            decoded = base64.b64decode(b64, validate=True)
+        except Exception:
+            raise HTTPException(status_code=400, detail="이미지 형식이 올바르지 않습니다")
+        if len(decoded) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="이미지가 너무 큽니다 (최대 5MB)")
+        if mt not in ("image/jpeg", "image/png", "image/webp", "image/gif"):
+            mt = "image/jpeg"
+        return mt, b64
+
+    image_list = [_parse_image(r) for r in raw_list]
 
     try:
         import anthropic
@@ -161,13 +200,13 @@ def analyze_photo(
     client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     # 1차: 저렴한 기본 모델(Haiku)로 시도
-    data = _extract_with_model(client, settings.ANTHROPIC_MODEL, media_type, b64)
+    data = _extract_with_model(client, settings.ANTHROPIC_MODEL, image_list)
 
     # 2차(자동 에스컬레이션): 1차가 실패했거나 자신 없으면(흐릿/작은 글씨) 상위 모델로 1회만 재시도
     escalation = settings.ANTHROPIC_ESCALATION_MODEL
     if escalation and escalation != settings.ANTHROPIC_MODEL:
         if data is None or data.get("confidence") == "low":
-            retried = _extract_with_model(client, escalation, media_type, b64)
+            retried = _extract_with_model(client, escalation, image_list)
             if retried is not None:
                 data = retried
 

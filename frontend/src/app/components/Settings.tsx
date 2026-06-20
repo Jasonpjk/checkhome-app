@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { User, Users, MapPin, Bell, CreditCard, Database, MessageCircle, Megaphone, FileText, ChevronRight, X, Plus, LogOut, Layers } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { User, Users, MapPin, Bell, CreditCard, Database, MessageCircle, Megaphone, FileText, ChevronRight, X, Plus, LogOut, Layers, Copy, Check, Loader2, Link } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { AdBanner } from './AdBanner'
+import { getMyFamily, createFamily, joinFamily, Family } from '../../api/families'
 
 interface SettingsProps {
   onLogout: () => void
@@ -25,6 +26,13 @@ const ALL_CATEGORIES = [
 export function Settings({ onLogout }: SettingsProps) {
   const { user, clearAuth } = useAuthStore()
   const [showFamilyModal, setShowFamilyModal] = useState(false)
+  const [family, setFamily] = useState<Family | null>(null)
+  const [familyLoading, setFamilyLoading] = useState(false)
+  const [familyError, setFamilyError] = useState('')
+  const [familyView, setFamilyView] = useState<'main' | 'create' | 'join'>('main')
+  const [familyName, setFamilyName] = useState('')
+  const [inviteCode, setInviteCode] = useState('')
+  const [copied, setCopied] = useState(false)
   const [showNotificationModal, setShowNotificationModal] = useState(false)
   const [showCategoriesModal, setShowCategoriesModal] = useState(false)
   const [enabledCategories, setEnabledCategories] = useState<Set<string>>(
@@ -36,6 +44,64 @@ export function Settings({ onLogout }: SettingsProps) {
       clearAuth()
       onLogout()
     }
+  }
+
+  const openFamilyModal = async () => {
+    setShowFamilyModal(true)
+    setFamilyView('main')
+    setFamilyError('')
+    setFamilyLoading(true)
+    try {
+      const f = await getMyFamily()
+      setFamily(f)
+    } catch {
+      setFamily(null)
+    } finally {
+      setFamilyLoading(false)
+    }
+  }
+
+  const handleCreateFamily = async () => {
+    if (!familyName.trim()) return
+    setFamilyLoading(true)
+    setFamilyError('')
+    try {
+      const f = await createFamily(familyName.trim())
+      setFamily(f)
+      setFamilyView('main')
+      setFamilyName('')
+    } catch (e: any) {
+      setFamilyError(e?.response?.data?.detail || '그룹 생성에 실패했습니다')
+    } finally {
+      setFamilyLoading(false)
+    }
+  }
+
+  const handleJoinFamily = async () => {
+    if (!inviteCode.trim()) return
+    setFamilyLoading(true)
+    setFamilyError('')
+    try {
+      const f = await joinFamily(inviteCode.trim())
+      setFamily(f)
+      setFamilyView('main')
+      setInviteCode('')
+    } catch (e: any) {
+      setFamilyError(e?.response?.data?.detail || '참여에 실패했습니다. 초대 코드를 확인해주세요.')
+    } finally {
+      setFamilyLoading(false)
+    }
+  }
+
+  const copyInviteLink = (code: string) => {
+    const link = `https://checkhome-app-seven.vercel.app/join/${code}`
+    navigator.clipboard?.writeText(link).catch(() => {})
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const ROLE_LABEL: Record<string, string> = {
+    owner: '소유자', editor: '편집자', viewer: '보기전용', executor: '수행전용',
   }
 
   const toggleCategory = (id: string) => {
@@ -80,7 +146,7 @@ export function Settings({ onLogout }: SettingsProps) {
           <h2 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-2">가족 및 관리</h2>
           <div className="bg-white border border-[#CBD5E1] rounded-xl overflow-hidden divide-y divide-gray-200 shadow-sm">
             <button
-              onClick={() => setShowFamilyModal(true)}
+              onClick={openFamilyModal}
               className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-[#F8FAFC]"
             >
               <div className="flex items-center gap-3">
@@ -201,29 +267,127 @@ export function Settings({ onLogout }: SettingsProps) {
         <div className="absolute inset-0 bg-black/50 flex items-end z-50">
           <div className="bg-white w-full rounded-t-2xl max-h-[85vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-4 py-3 flex items-center justify-between">
-              <h2 className="text-base font-bold">가족 공유 관리</h2>
-              <button onClick={() => setShowFamilyModal(false)}>
+              <h2 className="text-base font-bold">
+                {familyView === 'create' ? '가족 그룹 만들기' : familyView === 'join' ? '초대 코드로 참여' : '가족 공유 관리'}
+              </h2>
+              <button onClick={() => { setShowFamilyModal(false); setFamilyView('main'); setFamilyError('') }}>
                 <X size={20} />
               </button>
             </div>
-            <div className="px-4 py-4 space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-xs text-blue-900">공동 항목은 가족 중 누구 한 명이 완료하면 전체 완료로 표시됩니다.</p>
+
+            {familyLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 size={28} className="animate-spin text-[#14B8A6]" />
               </div>
-              <button className="w-full border-2 border-[#1A1A1A] text-[#1A1A1A] py-2.5 rounded-lg text-sm font-medium hover:bg-[#F8FAFC] flex items-center justify-center gap-1.5">
-                <Plus size={16} />
-                가족 초대
-              </button>
-              <div className="text-xs text-[#475569] space-y-1.5">
-                <p className="font-medium">권한 설명</p>
-                <ul className="space-y-0.5 text-[10px]">
-                  <li>• 소유자: 모든 항목 관리 및 가족 관리</li>
-                  <li>• 편집자: 항목 등록, 수정, 삭제 가능</li>
-                  <li>• 보기전용: 항목 조회만 가능</li>
-                  <li>• 수행전용: 완료 처리만 가능</li>
-                </ul>
+            ) : familyView === 'create' ? (
+              <div className="px-4 py-4 space-y-4">
+                <p className="text-sm text-[#64748B]">가족 그룹 이름을 입력하세요.</p>
+                <input
+                  type="text"
+                  placeholder="예: 우리 가족"
+                  value={familyName}
+                  onChange={(e) => setFamilyName(e.target.value)}
+                  className="w-full border border-[#E2E8F0] rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#14B8A6]"
+                />
+                {familyError && <p className="text-rose-500 text-xs">{familyError}</p>}
+                <div className="flex gap-2">
+                  <button onClick={() => { setFamilyView('main'); setFamilyError('') }} className="flex-1 py-3 border border-[#E2E8F0] rounded-xl text-sm font-medium text-[#64748B]">취소</button>
+                  <button onClick={handleCreateFamily} className="flex-1 py-3 bg-[#14B8A6] text-white rounded-xl text-sm font-semibold">만들기</button>
+                </div>
               </div>
-            </div>
+            ) : familyView === 'join' ? (
+              <div className="px-4 py-4 space-y-4">
+                <p className="text-sm text-[#64748B]">가족에게 받은 초대 코드를 입력하세요.</p>
+                <input
+                  type="text"
+                  placeholder="초대 코드 입력"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                  className="w-full border border-[#E2E8F0] rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#14B8A6] font-mono"
+                />
+                {familyError && <p className="text-rose-500 text-xs">{familyError}</p>}
+                <div className="flex gap-2">
+                  <button onClick={() => { setFamilyView('main'); setFamilyError('') }} className="flex-1 py-3 border border-[#E2E8F0] rounded-xl text-sm font-medium text-[#64748B]">취소</button>
+                  <button onClick={handleJoinFamily} className="flex-1 py-3 bg-[#14B8A6] text-white rounded-xl text-sm font-semibold">참여하기</button>
+                </div>
+              </div>
+            ) : family ? (
+              <div className="px-4 py-4 space-y-5">
+                {/* 그룹 정보 */}
+                <div className="bg-gradient-to-r from-[#0D9488] to-[#14B8A6] rounded-2xl p-4 text-white">
+                  <p className="text-xs opacity-75 mb-1">내 가족 그룹</p>
+                  <p className="text-lg font-bold">{family.name}</p>
+                  <p className="text-xs opacity-75 mt-1">멤버 {family.members.length}명</p>
+                </div>
+
+                {/* 초대 링크 */}
+                <div>
+                  <p className="text-xs font-semibold text-[#94A3B8] uppercase mb-2">초대 링크</p>
+                  <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-4 py-3 flex items-center gap-3">
+                    <Link size={16} className="text-[#14B8A6] flex-shrink-0" />
+                    <p className="text-xs text-[#64748B] flex-1 truncate font-mono">{family.invite_code}</p>
+                    <button
+                      onClick={() => copyInviteLink(family.invite_code)}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-[#14B8A6] text-white rounded-lg text-xs font-semibold flex-shrink-0"
+                    >
+                      {copied ? <Check size={12} /> : <Copy size={12} />}
+                      {copied ? '복사됨' : '링크 복사'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-[#94A3B8] mt-1.5">가족에게 이 링크를 공유하면 바로 참여할 수 있어요</p>
+                </div>
+
+                {/* 멤버 목록 */}
+                <div>
+                  <p className="text-xs font-semibold text-[#94A3B8] uppercase mb-2">멤버</p>
+                  <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden divide-y divide-[#F1F5F9]">
+                    {family.members.map((m) => (
+                      <div key={m.id} className="flex items-center justify-between px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white text-sm font-bold">
+                            {m.name[0]}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-[#1A1A1A]">
+                              {m.name}
+                              {m.user_id === user?.user_id && <span className="ml-1.5 text-xs text-[#14B8A6] font-normal">(나)</span>}
+                            </p>
+                            <p className="text-xs text-[#94A3B8]">{m.email}</p>
+                          </div>
+                        </div>
+                        <span className="text-xs px-2.5 py-1 bg-teal-50 text-teal-700 rounded-full font-medium">
+                          {ROLE_LABEL[m.role] || m.role}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="px-4 py-8 space-y-4 text-center">
+                <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto">
+                  <Users size={28} className="text-blue-500" />
+                </div>
+                <div>
+                  <p className="font-semibold text-[#1A1A1A] mb-1">가족 그룹이 없어요</p>
+                  <p className="text-sm text-[#64748B]">그룹을 만들거나 초대 코드로 참여하세요</p>
+                </div>
+                <div className="space-y-2 pt-2">
+                  <button
+                    onClick={() => { setFamilyView('create'); setFamilyError('') }}
+                    className="w-full py-3 bg-[#14B8A6] text-white rounded-xl text-sm font-semibold"
+                  >
+                    가족 그룹 만들기
+                  </button>
+                  <button
+                    onClick={() => { setFamilyView('join'); setFamilyError('') }}
+                    className="w-full py-3 border border-[#14B8A6] text-[#14B8A6] rounded-xl text-sm font-semibold"
+                  >
+                    초대 코드로 참여하기
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
