@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Mail, Lock, ChevronRight, User } from 'lucide-react'
+import { Mail, Lock, ChevronRight, User, Eye, EyeOff } from 'lucide-react'
 import { login, register, startGoogleLogin, startKakaoLogin } from '../../api/auth'
 import { useAuthStore } from '../../store/authStore'
 
@@ -15,6 +15,7 @@ export function Login({ onLogin }: LoginProps) {
   const [name, setName] = useState('')
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [agreePrivacy, setAgreePrivacy] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -127,13 +128,20 @@ export function Login({ onLogin }: LoginProps) {
               <div className="flex items-center gap-3 bg-[#F8FAFC] rounded-xl px-4 py-3.5">
                 <Lock size={20} className="text-gray-400" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="비밀번호를 입력하세요"
                   className="flex-1 bg-transparent outline-none"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 

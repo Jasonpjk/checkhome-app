@@ -198,7 +198,7 @@ export default function App() {
               onVehicleClick={(vehicle) => setSelectedVehicle(vehicle)}
             />
           )}
-          {activeTab === 'settings' && <Settings />}
+          {activeTab === 'settings' && <Settings onLogout={() => setCurrentScreen('onboarding')} />}
         </div>
 
         <div className="bg-white border-t border-[#E2E8F0] safe-area-bottom shadow-lg">

@@ -2,7 +2,11 @@ import { useState } from 'react'
 import { User, Users, MapPin, Bell, CreditCard, Database, MessageCircle, Megaphone, FileText, ChevronRight, X, Plus, LogOut } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 
-export function Settings() {
+interface SettingsProps {
+  onLogout: () => void
+}
+
+export function Settings({ onLogout }: SettingsProps) {
   const { user, clearAuth } = useAuthStore()
   const [showFamilyModal, setShowFamilyModal] = useState(false)
   const [showNotificationModal, setShowNotificationModal] = useState(false)
@@ -10,6 +14,7 @@ export function Settings() {
   const handleLogout = () => {
     if (confirm('로그아웃 하시겠습니까?')) {
       clearAuth()
+      onLogout()
     }
   }
 
