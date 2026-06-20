@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Camera, ChevronLeft, CheckCircle, X, Sparkles, Loader2 } from 'lucide-react'
+import { Camera, ChevronLeft, CheckCircle, X, Sparkles, Loader2, Image } from 'lucide-react'
 import { createItem, analyzePhoto } from '../../api/items'
 import { getCategoryTemplates, categoryIdMap } from '../data/categoryTemplates'
 import { AdBanner } from './AdBanner'
@@ -185,16 +185,8 @@ export function Register({ onRegistered }: RegisterProps) {
 
         {/* AI 사진 자동 등록 */}
         <div className="px-6 mb-5">
-          <label
-            className={`relative block rounded-2xl p-5 bg-gradient-to-r from-[#0D9488] to-[#14B8A6] shadow-md cursor-pointer transition-opacity ${analyzing ? 'opacity-60 pointer-events-none' : ''}`}
-          >
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto(f, true) }}
-            />
-            <div className="flex items-center gap-3">
+          <div className={`rounded-2xl bg-gradient-to-r from-[#0D9488] to-[#14B8A6] shadow-md transition-opacity ${analyzing ? 'opacity-60 pointer-events-none' : ''}`}>
+            <div className="flex items-center gap-3 px-5 pt-5 pb-3">
               <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
                 <Sparkles size={24} className="text-white" />
               </div>
@@ -202,9 +194,22 @@ export function Register({ onRegistered }: RegisterProps) {
                 <p className="text-white font-bold">AI 사진 자동 등록</p>
                 <p className="text-white/80 text-xs mt-0.5">제품을 촬영하면 이름·유통기한을 자동 입력해요</p>
               </div>
-              <Camera size={22} className="text-white/90 flex-shrink-0" />
             </div>
-          </label>
+            <div className="grid grid-cols-2 gap-2 px-4 pb-4">
+              <label className="flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 active:bg-white/40 rounded-xl py-3 cursor-pointer transition-colors">
+                <input type="file" accept="image/*" capture="environment" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto(f, true) }} />
+                <Camera size={18} className="text-white" />
+                <span className="text-white text-sm font-semibold">카메라 촬영</span>
+              </label>
+              <label className="flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 active:bg-white/40 rounded-xl py-3 cursor-pointer transition-colors">
+                <input type="file" accept="image/*" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto(f, true) }} />
+                <Image size={18} className="text-white" />
+                <span className="text-white text-sm font-semibold">갤러리 선택</span>
+              </label>
+            </div>
+          </div>
           {analyzeError && <p className="text-rose-500 text-xs mt-2 px-1">{analyzeError}</p>}
           {aiNote && !analyzing && (
             <p className={`text-xs mt-2 px-1 flex items-center gap-1 ${aiNoteWarn ? 'text-amber-600' : 'text-[#14B8A6]'}`}>
@@ -301,17 +306,20 @@ export function Register({ onRegistered }: RegisterProps) {
               </button>
             </div>
           ) : (
-            <label className="w-full aspect-video bg-white border-2 border-dashed border-[#E2E8F0] rounded-xl flex flex-col items-center justify-center hover:border-[#14B8A6] hover:bg-teal-50 transition-all cursor-pointer">
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto(f, false) }}
-              />
-              <Camera size={32} className="text-[#94A3B8] mb-2" />
-              <p className="text-sm text-[#64748B] font-medium">사진 촬영 / 선택</p>
-              <p className="text-xs text-[#94A3B8] mt-1">촬영하면 AI가 자동 입력해요</p>
-            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col items-center justify-center gap-2 bg-white border-2 border-dashed border-[#E2E8F0] rounded-xl py-6 hover:border-[#14B8A6] hover:bg-teal-50 transition-all cursor-pointer">
+                <input type="file" accept="image/*" capture="environment" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto(f, false) }} />
+                <Camera size={28} className="text-[#94A3B8]" />
+                <p className="text-xs text-[#64748B] font-medium">카메라 촬영</p>
+              </label>
+              <label className="flex flex-col items-center justify-center gap-2 bg-white border-2 border-dashed border-[#E2E8F0] rounded-xl py-6 hover:border-[#14B8A6] hover:bg-teal-50 transition-all cursor-pointer">
+                <input type="file" accept="image/*" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onPickPhoto(f, false) }} />
+                <Image size={28} className="text-[#94A3B8]" />
+                <p className="text-xs text-[#64748B] font-medium">갤러리 선택</p>
+              </label>
+            </div>
           )}
           {aiNote && (
             <p className={`text-xs mt-2 flex items-center gap-1 ${aiNoteWarn ? 'text-amber-600' : 'text-[#14B8A6]'}`}>
