@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     CLOUDINARY_CLOUD_NAME: Optional[str] = None
     CLOUDINARY_API_KEY: Optional[str] = None
     CLOUDINARY_API_SECRET: Optional[str] = None
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    KAKAO_REST_API_KEY: str = ""
+    KAKAO_CLIENT_SECRET: Optional[str] = None
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

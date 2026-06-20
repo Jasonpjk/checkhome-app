@@ -36,18 +36,21 @@ export function Onboarding({ onComplete }: OnboardingProps) {
 
   return (
     <div className="min-h-screen w-full bg-gray-200 flex items-center justify-center">
-      <div className="h-screen w-full max-w-md bg-gradient-to-b from-[#ECFDF5] to-white flex flex-col shadow-2xl">
-        <div className="flex-1 flex flex-col items-center justify-center px-6">
-          <div className="text-7xl mb-8">{slides[currentSlide].icon}</div>
-          <h1 className="text-3xl font-semibold text-center text-[#1A1A1A] mb-4 whitespace-pre-line">
+      <div
+        className="w-full max-w-md bg-gradient-to-b from-[#ECFDF5] to-white flex flex-col shadow-2xl"
+        style={{ height: '100dvh' }}
+      >
+        <div className="flex-1 flex flex-col items-center justify-center px-6 overflow-y-auto min-h-0 py-6">
+          <div className="text-5xl mb-5">{slides[currentSlide].icon}</div>
+          <h1 className="text-2xl font-semibold text-center text-[#1A1A1A] mb-3 whitespace-pre-line leading-snug">
             {slides[currentSlide].title}
           </h1>
-          <p className="text-base text-center text-[#475569] whitespace-pre-line">
+          <p className="text-sm text-center text-[#475569] whitespace-pre-line leading-relaxed">
             {slides[currentSlide].description}
           </p>
         </div>
 
-        <div className="flex items-center justify-center gap-2 mb-8">
+        <div className="flex items-center justify-center gap-2 mb-5">
           {slides.map((_, index) => (
             <div
               key={index}
@@ -58,16 +61,16 @@ export function Onboarding({ onComplete }: OnboardingProps) {
           ))}
         </div>
 
-        <div className="px-6 pb-8 space-y-3">
+        <div className="px-6 pb-safe space-y-2" style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
           <button
             onClick={handleNext}
-            className="w-full bg-[#1A1A1A] text-white py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-[#14B8A6] transition-colors"
+            className="w-full bg-[#1A1A1A] text-white py-3.5 rounded-xl flex items-center justify-center gap-2 hover:bg-[#14B8A6] transition-colors"
           >
             {currentSlide === slides.length - 1 ? '시작하기' : '다음'}
             <ChevronRight size={20} />
           </button>
           {currentSlide < slides.length - 1 && (
-            <button onClick={onComplete} className="w-full text-[#94A3B8] py-3">
+            <button onClick={onComplete} className="w-full text-[#94A3B8] py-2.5">
               건너뛰기
             </button>
           )}

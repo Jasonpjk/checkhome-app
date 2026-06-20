@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Home as HomeIcon, Archive, PlusCircle, Car, Settings as SettingsIcon } from 'lucide-react'
 import { Onboarding } from './components/Onboarding'
 import { Login } from './components/Login'
@@ -11,20 +11,27 @@ import { Settings } from './components/Settings'
 import { ItemDetail } from './components/ItemDetail'
 import { ItemEdit } from './components/ItemEdit'
 import { useAuthStore } from '../store/authStore'
+import { socialLogin } from '../api/auth'
 import { Item } from '../api/items'
 import { Vehicle as VehicleType } from '../api/vehicles'
 
-type Screen = 'onboarding' | 'login' | 'main'
+type Screen = 'onboarding' | 'login' | 'main' | 'social-callback'
 type Tab = 'home' | 'storage' | 'register' | 'vehicle' | 'settings'
 type SmartFilter = 'action-needed' | 'this-week' | null
 
 const ONBOARDING_KEY = 'checkhome_onboarding_done'
 
+function hasOAuthParams() {
+  const p = new URLSearchParams(window.location.search)
+  return p.has('code') && p.has('state')
+}
+
 export default function App() {
-  const { user, token } = useAuthStore()
+  const { user, token, setAuth } = useAuthStore()
   const [onboardingDone] = useState(() => localStorage.getItem(ONBOARDING_KEY) === '1')
 
   const getInitialScreen = (): Screen => {
+    if (hasOAuthParams()) return 'social-callback'
     if (!onboardingDone) return 'onboarding'
     if (!token || !user) return 'login'
     return 'main'
@@ -38,9 +45,54 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [smartFilter, setSmartFilter] = useState<SmartFilter>(null)
 
+  useEffect(() => {
+    if (!hasOAuthParams()) return
+
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('code')!
+    const stateParam = params.get('state')!
+
+    let provider: 'google' | 'kakao' = 'google'
+    try {
+      const stateData = JSON.parse(atob(stateParam))
+      const savedNonce = sessionStorage.getItem('checkhome_oauth_nonce')
+      if (savedNonce && stateData.nonce !== savedNonce) {
+        setCurrentScreen('login')
+        return
+      }
+      sessionStorage.removeItem('checkhome_oauth_nonce')
+      if (stateData.provider === 'kakao') provider = 'kakao'
+    } catch {
+      // state 파싱 실패 시 기본 google 사용
+    }
+
+    const redirectUri = `${window.location.origin}/auth/callback`
+    window.history.replaceState({}, '', '/')
+
+    socialLogin(provider, code, redirectUri)
+      .then((result) => {
+        setAuth({ user_id: result.user_id, name: result.name, email: result.email }, result.access_token)
+        setCurrentScreen('main')
+      })
+      .catch(() => {
+        setCurrentScreen('login')
+      })
+  }, [])
+
   const handleOnboardingComplete = () => {
     localStorage.setItem(ONBOARDING_KEY, '1')
     setCurrentScreen('login')
+  }
+
+  if (currentScreen === 'social-callback') {
+    return (
+      <div className="min-h-screen w-full bg-gray-200 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#14B8A6] mx-auto mb-4" />
+          <p className="text-sm text-gray-500">로그인 중...</p>
+        </div>
+      </div>
+    )
   }
 
   if (currentScreen === 'onboarding') {

@@ -19,3 +19,8 @@ class TokenResponse(BaseModel):
     name: str
     email: str
     is_admin: bool = False
+
+
+class OAuthCodeRequest(BaseModel):
+    code: str
+    redirect_uri: str
