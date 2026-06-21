@@ -2,12 +2,14 @@ import base64
 import re
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_
 from typing import List, Optional
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.deps import get_current_user
 from app.models.user import User
 from app.models.item import Item, ActionLog
+from app.models.family import FamilyMember
 from app.schemas.item import (
     ItemCreate,
     ItemUpdate,
@@ -158,6 +160,38 @@ def _extract_with_model(client, model: str, image_list: list, user_text: str):
     return tool_block.input or {}
 
 
+def get_user_family_id(db: Session, user_id: int):
+    """사용자가 속한 가족 id (없으면 None)."""
+    m = db.query(FamilyMember).filter(FamilyMember.user_id == user_id).first()
+    return m.family_id if m else None
+
+
+def _visible_items_filter(current_user: User, fam_id):
+    """목록/통계에서 볼 수 있는 항목 조건:
+    - 내가 만든 모든 항목(개인+공유)
+    - 가족이 만든 항목 중 '가족 공유'로 표시된 것
+    """
+    if fam_id is not None:
+        return or_(
+            Item.user_id == current_user.id,
+            and_(Item.family_id == fam_id, Item.is_family_shared == True),
+        )
+    return Item.user_id == current_user.id
+
+
+def _get_accessible_item(db: Session, item_id: int, current_user: User) -> Item:
+    """단건 접근(조회/수정/삭제): 내 항목이거나 가족 공유 항목이면 허용."""
+    fam_id = get_user_family_id(db, current_user.id)
+    item = db.query(Item).filter(Item.id == item_id, Item.is_active == True).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다")
+    owned = item.user_id == current_user.id
+    shared = fam_id is not None and item.family_id == fam_id and bool(item.is_family_shared)
+    if not (owned or shared):
+        raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다")
+    return item
+
+
 def _item_to_response(item: Item, include_photo: bool = True) -> dict:
     return {
         "id": item.id,
@@ -172,6 +206,8 @@ def _item_to_response(item: Item, include_photo: bool = True) -> dict:
         "photo_url": item.photo_url if include_photo else None,
         "handler_name": item.handler_name,
         "is_family_shared": item.is_family_shared,
+        "family_id": item.family_id,
+        "created_by_name": item.owner.name if item.owner else None,
         "quantity": item.quantity,
         "memo": item.memo,
         "risk": item.risk,
@@ -188,7 +224,8 @@ def list_items(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    query = db.query(Item).filter(Item.user_id == current_user.id, Item.is_active == True)
+    fam_id = get_user_family_id(db, current_user.id)
+    query = db.query(Item).filter(_visible_items_filter(current_user, fam_id), Item.is_active == True)
     if category and category != "전체":
         query = query.filter(Item.category == category)
     items = query.all()
@@ -211,6 +248,12 @@ def create_item(
     # 위험도 미지정 또는 medium 기본값이면 카테고리 기준으로 자동 계산
     if data.get("risk") == "medium":
         data["risk"] = CATEGORY_RISK.get(data.get("category", ""), "medium")
+    # 가족에 속해 있으면 family_id 자동 세팅. 공유 여부는 프론트가 보낸 is_family_shared 사용.
+    # 가족이 없으면 공유는 의미 없으므로 False.
+    fam_id = get_user_family_id(db, current_user.id)
+    data["family_id"] = fam_id
+    if fam_id is None:
+        data["is_family_shared"] = False
     item = Item(user_id=current_user.id, **data)
     db.add(item)
     db.commit()
@@ -291,7 +334,8 @@ def get_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    items = db.query(Item).filter(Item.user_id == current_user.id, Item.is_active == True).all()
+    fam_id = get_user_family_id(db, current_user.id)
+    items = db.query(Item).filter(_visible_items_filter(current_user, fam_id), Item.is_active == True).all()
     results = [_item_to_response(item, include_photo=False) for item in items]
     action_needed = [r for r in results if r["status"] in ("expired", "imminent", "check-needed")]
     this_week = [r for r in results if r["days_left"] is not None and 0 <= r["days_left"] <= 7]
@@ -312,9 +356,7 @@ def get_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    item = db.query(Item).filter(Item.id == item_id, Item.user_id == current_user.id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다")
+    item = _get_accessible_item(db, item_id, current_user)
     return _item_to_response(item)
 
 
@@ -325,11 +367,13 @@ def update_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    item = db.query(Item).filter(Item.id == item_id, Item.user_id == current_user.id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다")
-    for key, value in req.model_dump(exclude_unset=True).items():
+    item = _get_accessible_item(db, item_id, current_user)
+    updates = req.model_dump(exclude_unset=True)
+    for key, value in updates.items():
         setattr(item, key, value)
+    # 항목을 '가족 공유'로 바꾸면 내 가족에 연결해 가족 전원이 보게 한다.
+    if updates.get("is_family_shared") is True and item.family_id is None:
+        item.family_id = get_user_family_id(db, current_user.id)
     db.commit()
     db.refresh(item)
     return _item_to_response(item)
@@ -341,9 +385,7 @@ def delete_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    item = db.query(Item).filter(Item.id == item_id, Item.user_id == current_user.id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다")
+    item = _get_accessible_item(db, item_id, current_user)
     item.is_active = False
     db.commit()
     return {"ok": True}
@@ -356,9 +398,7 @@ def record_action(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    item = db.query(Item).filter(Item.id == item_id, Item.user_id == current_user.id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다")
+    item = _get_accessible_item(db, item_id, current_user)
     log = ActionLog(item_id=item_id, user_id=current_user.id, action_type=req.action_type, note=req.note)
     db.add(log)
     if req.action_type in ("completed", "disposed", "replaced"):

@@ -11,6 +11,8 @@ export interface Item {
   photo_url: string | null
   handler_name: string | null
   is_family_shared: boolean
+  family_id: number | null
+  created_by_name: string | null
   quantity: number
   memo: string | null
   risk: 'high' | 'medium' | 'low'

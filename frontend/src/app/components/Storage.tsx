@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Search, SlidersHorizontal, X, ChevronRight } from 'lucide-react'
+import { Search, SlidersHorizontal, X, ChevronRight, Lock, Users } from 'lucide-react'
 import { fetchItems, Item } from '../../api/items'
 import { statusConfig } from '../data/statusConfig'
 import { AdBanner } from './AdBanner'
@@ -177,11 +177,20 @@ export function Storage({ onItemClick, initialCategory, smartFilter, onFilterCha
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${statusConfig[item.status].badge}`}>
                         {statusConfig[item.status].label}
                       </span>
                       <span className="text-xs text-[#94A3B8]">{item.category}</span>
+                      {item.family_id && (item.is_family_shared ? (
+                        <span className="inline-flex items-center gap-0.5 text-xs text-teal-600 font-medium">
+                          <Users size={11} />{item.created_by_name || '공유'}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-0.5 text-xs text-[#94A3B8]">
+                          <Lock size={11} />나만
+                        </span>
+                      ))}
                     </div>
                     <h3 className="font-semibold text-[#1A1A1A] mb-1 truncate">{item.name}</h3>
                     <p className="text-sm text-[#475569]">{formatDate(item)}</p>

@@ -1,10 +1,11 @@
-import { useState } from 'react'
-import { Camera, ChevronLeft, CheckCircle, X, Sparkles, Loader2, Image } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Camera, ChevronLeft, CheckCircle, X, Sparkles, Loader2, Image, Users, Lock } from 'lucide-react'
 import { createItem, analyzePhoto } from '../../api/items'
 import { getCategoryTemplates, categoryIdMap } from '../data/categoryTemplates'
 import { AdBanner } from './AdBanner'
 import { fileToCompressedDataUrl } from '../utils/image'
 import { useAuthStore } from '../../store/authStore'
+import { getMyFamily } from '../../api/families'
 
 const categories = [
   { id: 'food', name: '식품', icon: '🍎' },
@@ -55,6 +56,13 @@ export function Register({ onRegistered }: RegisterProps) {
   const [analyzeError, setAnalyzeError] = useState('')
   const [aiNote, setAiNote] = useState('')
   const [aiNoteWarn, setAiNoteWarn] = useState(false)
+  // 가족에 속해 있으면 '가족과 함께 보기' 토글 노출 (기본 ON = 같이 챙기기)
+  const [hasFamily, setHasFamily] = useState(false)
+  const [shareWithFamily, setShareWithFamily] = useState(true)
+
+  useEffect(() => {
+    getMyFamily().then(() => setHasFamily(true)).catch(() => setHasFamily(false))
+  }, [])
 
   const runAnalysis = async (photoList: string[], jumpToForm: boolean) => {
     if (photoList.length === 0) return
@@ -210,6 +218,7 @@ export function Register({ onRegistered }: RegisterProps) {
         quantity: parseInt(quantity) || 1,
         handler_name: handlerName || undefined,
         memo: memo || undefined,
+        is_family_shared: hasFamily ? shareWithFamily : false,
       })
       setShowSuccessModal(true)
       setTimeout(() => {
@@ -437,6 +446,32 @@ export function Register({ onRegistered }: RegisterProps) {
             />
           </div>
         </div>
+
+        {hasFamily && (
+          <div className={`flex items-center justify-between rounded-xl px-4 py-3.5 border transition-colors ${shareWithFamily ? 'bg-teal-50 border-teal-200' : 'bg-[#F8FAFC] border-[#E2E8F0]'}`}>
+            <div className="flex items-center gap-3">
+              {shareWithFamily
+                ? <Users size={20} className="text-[#14B8A6] flex-shrink-0" />
+                : <Lock size={20} className="text-[#94A3B8] flex-shrink-0" />}
+              <div>
+                <p className="text-sm font-semibold text-[#1A1A1A]">
+                  {shareWithFamily ? '가족과 함께 보기' : '나만 보기'}
+                </p>
+                <p className="text-xs text-[#64748B] mt-0.5">
+                  {shareWithFamily ? '가족 모두가 이 항목을 보고 같이 챙겨요' : '이 항목은 나만 볼 수 있어요'}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShareWithFamily((v) => !v)}
+              className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${shareWithFamily ? 'bg-[#14B8A6]' : 'bg-gray-300'}`}
+              aria-label="가족 공유 토글"
+            >
+              <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-all ${shareWithFamily ? 'left-6' : 'left-1'}`} />
+            </button>
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-semibold text-[#1A1A1A] mb-3">담당자</label>

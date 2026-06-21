@@ -44,6 +44,8 @@ class ItemResponse(BaseModel):
     photo_url: Optional[str]
     handler_name: Optional[str]
     is_family_shared: bool
+    family_id: Optional[int] = None
+    created_by_name: Optional[str] = None  # 등록한 사람 이름 (가족 공유 시 누가 등록했는지 표시)
     quantity: int
     memo: Optional[str]
     risk: str

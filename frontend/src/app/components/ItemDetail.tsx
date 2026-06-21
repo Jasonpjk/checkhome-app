@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, MapPin, User, Camera, X, Edit2, CheckCircle, Trash2, RefreshCw, Archive, Loader2 } from 'lucide-react'
+import { ArrowLeft, MapPin, User, Camera, X, Edit2, CheckCircle, Trash2, RefreshCw, Archive, Loader2, Users, Lock } from 'lucide-react'
 import { Item, recordAction, deleteItem, updateItem, fetchItem } from '../../api/items'
 import { statusConfig, riskConfig } from '../data/statusConfig'
 import { AdBanner } from './AdBanner'
@@ -18,15 +18,39 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
   const [actionLabel, setActionLabel] = useState('')
   const [loading, setLoading] = useState(false)
   const [savingPhoto, setSavingPhoto] = useState(false)
+  // 가족 공유 상태 (항목별로 '가족 공유' ↔ '나만 보기' 전환 가능)
+  const [shared, setShared] = useState(item.is_family_shared)
+  const [familyId, setFamilyId] = useState<number | null>(item.family_id)
+  const [createdBy, setCreatedBy] = useState<string | null>(item.created_by_name)
+  const [togglingShare, setTogglingShare] = useState(false)
 
   // 목록 응답에는 사진이 빠져 있으므로, 상세 화면에서 사진을 따로 불러온다.
   useEffect(() => {
     let active = true
     fetchItem(item.id)
-      .then((full) => { if (active && full.photo_url) setPhotoPreview(full.photo_url) })
+      .then((full) => {
+        if (!active) return
+        if (full.photo_url) setPhotoPreview(full.photo_url)
+        setShared(full.is_family_shared)
+        setFamilyId(full.family_id)
+        setCreatedBy(full.created_by_name)
+      })
       .catch(() => {})
     return () => { active = false }
   }, [item.id])
+
+  const handleToggleShare = async () => {
+    setTogglingShare(true)
+    try {
+      const updated = await updateItem(item.id, { is_family_shared: !shared })
+      setShared(updated.is_family_shared)
+      setFamilyId(updated.family_id)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setTogglingShare(false)
+    }
+  }
 
   const handlePhotoPick = async (file?: File) => {
     if (!file) return
@@ -193,6 +217,31 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
               ))}
             </div>
           </div>
+
+          {familyId && (
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#E2E8F0]">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  {shared
+                    ? <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center flex-shrink-0"><Users size={18} className="text-[#14B8A6]" /></div>
+                    : <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0"><Lock size={18} className="text-[#94A3B8]" /></div>}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[#1A1A1A]">{shared ? '가족과 함께 보는 항목' : '나만 보는 항목'}</p>
+                    <p className="text-xs text-[#64748B] mt-0.5 truncate">
+                      {createdBy ? `${createdBy} 등록` : ''}{shared ? ' · 가족 모두에게 보여요' : ' · 나만 볼 수 있어요'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleToggleShare}
+                  disabled={togglingShare}
+                  className={`flex-shrink-0 px-3 py-2 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${shared ? 'bg-gray-100 text-[#475569] hover:bg-gray-200' : 'bg-[#14B8A6] text-white hover:bg-[#0D9488]'}`}
+                >
+                  {togglingShare ? '...' : shared ? '나만 보기로' : '가족과 공유'}
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="-mx-6">
             <AdBanner variant="mid" text="소방 점검 전문 업체 안심119" subtext="우리 집 안전 점검 무료 상담 받아보세요" icon="shield" />

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { User, Users, MapPin, Bell, CreditCard, Database, MessageCircle, Megaphone, FileText, ChevronRight, X, Plus, LogOut, Layers, Copy, Check, Loader2, Link } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { AdBanner } from './AdBanner'
-import { getMyFamily, createFamily, joinFamily, Family } from '../../api/families'
+import { getMyFamily, createFamily, joinFamily, shareExistingItems, Family } from '../../api/families'
 
 interface SettingsProps {
   onLogout: () => void
@@ -29,10 +29,11 @@ export function Settings({ onLogout }: SettingsProps) {
   const [family, setFamily] = useState<Family | null>(null)
   const [familyLoading, setFamilyLoading] = useState(false)
   const [familyError, setFamilyError] = useState('')
-  const [familyView, setFamilyView] = useState<'main' | 'create' | 'join'>('main')
+  const [familyView, setFamilyView] = useState<'main' | 'create' | 'join' | 'share-ask'>('main')
   const [familyName, setFamilyName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
   const [copied, setCopied] = useState(false)
+  const [pendingShareCount, setPendingShareCount] = useState(0)
   const [showNotificationModal, setShowNotificationModal] = useState(false)
   const [showCategoriesModal, setShowCategoriesModal] = useState(false)
   const [enabledCategories, setEnabledCategories] = useState<Set<string>>(
@@ -61,15 +62,25 @@ export function Settings({ onLogout }: SettingsProps) {
     }
   }
 
+  // 가족 생성/참여 직후, 기존 개인 항목이 있으면 '공유할지' 묻는 화면으로, 없으면 메인으로.
+  const afterJoinOrCreate = (f: Family) => {
+    setFamily(f)
+    if (f.personal_item_count && f.personal_item_count > 0) {
+      setPendingShareCount(f.personal_item_count)
+      setFamilyView('share-ask')
+    } else {
+      setFamilyView('main')
+    }
+  }
+
   const handleCreateFamily = async () => {
     if (!familyName.trim()) return
     setFamilyLoading(true)
     setFamilyError('')
     try {
       const f = await createFamily(familyName.trim())
-      setFamily(f)
-      setFamilyView('main')
       setFamilyName('')
+      afterJoinOrCreate(f)
     } catch (e: any) {
       setFamilyError(e?.response?.data?.detail || '그룹 생성에 실패했습니다')
     } finally {
@@ -83,13 +94,26 @@ export function Settings({ onLogout }: SettingsProps) {
     setFamilyError('')
     try {
       const f = await joinFamily(inviteCode.trim())
-      setFamily(f)
-      setFamilyView('main')
       setInviteCode('')
+      afterJoinOrCreate(f)
     } catch (e: any) {
       setFamilyError(e?.response?.data?.detail || '참여에 실패했습니다. 초대 코드를 확인해주세요.')
     } finally {
       setFamilyLoading(false)
+    }
+  }
+
+  const handleShareExisting = async () => {
+    setFamilyLoading(true)
+    try {
+      await shareExistingItems()
+      const f = await getMyFamily()
+      setFamily(f)
+    } catch {
+      // 실패해도 메인으로(개인 유지 상태)
+    } finally {
+      setFamilyLoading(false)
+      setFamilyView('main')
     }
   }
 
@@ -268,7 +292,7 @@ export function Settings({ onLogout }: SettingsProps) {
           <div className="bg-white w-full rounded-t-2xl max-h-[85vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-4 py-3 flex items-center justify-between">
               <h2 className="text-base font-bold">
-                {familyView === 'create' ? '가족 그룹 만들기' : familyView === 'join' ? '초대 코드로 참여' : '가족 공유 관리'}
+                {familyView === 'create' ? '가족 그룹 만들기' : familyView === 'join' ? '초대 코드로 참여' : familyView === 'share-ask' ? '기존 항목 공유' : '가족 공유 관리'}
               </h2>
               <button onClick={() => { setShowFamilyModal(false); setFamilyView('main'); setFamilyError('') }}>
                 <X size={20} />
@@ -293,6 +317,37 @@ export function Settings({ onLogout }: SettingsProps) {
                 <div className="flex gap-2">
                   <button onClick={() => { setFamilyView('main'); setFamilyError('') }} className="flex-1 py-3 border border-[#E2E8F0] rounded-xl text-sm font-medium text-[#64748B]">취소</button>
                   <button onClick={handleCreateFamily} className="flex-1 py-3 bg-[#14B8A6] text-white rounded-xl text-sm font-semibold">만들기</button>
+                </div>
+              </div>
+            ) : familyView === 'share-ask' ? (
+              <div className="px-4 py-6 space-y-5">
+                <div className="w-16 h-16 bg-teal-50 rounded-full flex items-center justify-center mx-auto">
+                  <Users size={28} className="text-[#14B8A6]" />
+                </div>
+                <div className="text-center">
+                  <p className="font-bold text-lg text-[#1A1A1A]">기존 항목을 가족과 공유할까요?</p>
+                  <p className="text-sm text-[#64748B] mt-1.5">
+                    참여 전에 등록해둔 <b className="text-[#14B8A6]">{pendingShareCount}개</b> 항목이 있어요.
+                  </p>
+                </div>
+                <div className="bg-[#F8FAFC] rounded-xl p-4 text-sm text-[#475569] space-y-2 border border-[#E2E8F0]">
+                  <div className="flex items-start gap-2">
+                    <Users size={16} className="text-[#14B8A6] mt-0.5 flex-shrink-0" />
+                    <p><b>함께 보기</b> — 기존 항목이 가족 공용이 되어 가족 모두가 보고 같이 챙겨요.</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Layers size={16} className="text-[#94A3B8] mt-0.5 flex-shrink-0" />
+                    <p><b>나만 보기</b> — 기존 항목은 나만 보고, 앞으로 등록하는 것만 공유돼요.</p>
+                  </div>
+                  <p className="text-xs text-[#94A3B8] pt-1">💡 나중에 각 항목 화면에서 언제든 바꿀 수 있어요.</p>
+                </div>
+                <div className="space-y-2">
+                  <button onClick={handleShareExisting} className="w-full py-3 bg-[#14B8A6] text-white rounded-xl text-sm font-semibold">
+                    가족과 함께 보기
+                  </button>
+                  <button onClick={() => setFamilyView('main')} className="w-full py-3 border border-[#E2E8F0] text-[#64748B] rounded-xl text-sm font-semibold">
+                    나만 보기 (기존 항목 유지)
+                  </button>
                 </div>
               </div>
             ) : familyView === 'join' ? (
