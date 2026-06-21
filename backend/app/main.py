@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api import auth, items, vehicles, families, admin
+from app.api import auth, items, vehicles, families, admin, locations
 import app.models  # noqa: F401 - ensure models are registered
 
 app = FastAPI(
@@ -23,6 +23,7 @@ app.include_router(items.router, prefix="/api")
 app.include_router(vehicles.router, prefix="/api")
 app.include_router(families.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
+app.include_router(locations.router, prefix="/api")
 
 
 @app.get("/")

@@ -6,6 +6,7 @@ import { AdBanner } from './AdBanner'
 import { fileToCompressedDataUrl } from '../utils/image'
 import { useAuthStore } from '../../store/authStore'
 import { getMyFamily } from '../../api/families'
+import { fetchLocations } from '../../api/locations'
 
 const categories = [
   { id: 'food', name: '식품', icon: '🍎' },
@@ -59,9 +60,11 @@ export function Register({ onRegistered }: RegisterProps) {
   // 가족에 속해 있으면 '가족과 함께 보기' 토글 노출 (기본 ON = 같이 챙기기)
   const [hasFamily, setHasFamily] = useState(false)
   const [shareWithFamily, setShareWithFamily] = useState(true)
+  const [locOptions, setLocOptions] = useState<string[]>([])
 
   useEffect(() => {
     getMyFamily().then(() => setHasFamily(true)).catch(() => setHasFamily(false))
+    fetchLocations().then((ls) => setLocOptions(ls.map((l) => l.name))).catch(() => {})
   }, [])
 
   const runAnalysis = async (photoList: string[], jumpToForm: boolean) => {
@@ -429,11 +432,15 @@ export function Register({ onRegistered }: RegisterProps) {
             <label className="block text-sm font-semibold text-[#1A1A1A] mb-3">보관 위치</label>
             <input
               type="text"
+              list="loc-options"
               placeholder="냉장고"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               className="w-full bg-white border border-[#E2E8F0] rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#14B8A6]"
             />
+            <datalist id="loc-options">
+              {locOptions.map((l) => <option key={l} value={l} />)}
+            </datalist>
           </div>
           <div>
             <label className="block text-sm font-semibold text-[#1A1A1A] mb-3">수량</label>

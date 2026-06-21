@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { User, Users, MapPin, Bell, CreditCard, Database, MessageCircle, Megaphone, FileText, ChevronRight, X, Plus, LogOut, Layers, Copy, Check, Loader2, Link } from 'lucide-react'
+import { User, Users, MapPin, Bell, CreditCard, Database, MessageCircle, Megaphone, FileText, ChevronRight, X, Plus, LogOut, Layers, Copy, Check, Loader2, Link, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { AdBanner } from './AdBanner'
 import { getMyFamily, createFamily, joinFamily, shareExistingItems, Family } from '../../api/families'
+import { fetchLocations, createLocation, deleteLocation, StorageLocation } from '../../api/locations'
 
 interface SettingsProps {
   onLogout: () => void
@@ -34,6 +35,10 @@ export function Settings({ onLogout }: SettingsProps) {
   const [inviteCode, setInviteCode] = useState('')
   const [copied, setCopied] = useState(false)
   const [pendingShareCount, setPendingShareCount] = useState(0)
+  const [showLocationModal, setShowLocationModal] = useState(false)
+  const [locations, setLocations] = useState<StorageLocation[]>([])
+  const [newLoc, setNewLoc] = useState('')
+  const [locLoading, setLocLoading] = useState(false)
   const [showNotificationModal, setShowNotificationModal] = useState(false)
   const [showCategoriesModal, setShowCategoriesModal] = useState(false)
   const [enabledCategories, setEnabledCategories] = useState<Set<string>>(
@@ -117,6 +122,40 @@ export function Settings({ onLogout }: SettingsProps) {
     }
   }
 
+  const openLocationModal = async () => {
+    setShowLocationModal(true)
+    setLocLoading(true)
+    try {
+      setLocations(await fetchLocations())
+    } catch {
+      setLocations([])
+    } finally {
+      setLocLoading(false)
+    }
+  }
+
+  const handleAddLocation = async () => {
+    const n = newLoc.trim()
+    if (!n) return
+    try {
+      const created = await createLocation(n)
+      setLocations((p) => [...p, created])
+      setNewLoc('')
+    } catch {
+      // 중복 등 — 조용히 무시
+    }
+  }
+
+  const handleDeleteLocation = async (id: number) => {
+    if (!confirm('이 위치를 삭제할까요? 기존에 등록된 항목의 위치 표시는 그대로 유지됩니다.')) return
+    try {
+      await deleteLocation(id)
+      setLocations((p) => p.filter((l) => l.id !== id))
+    } catch {
+      // 무시
+    }
+  }
+
   const copyInviteLink = (code: string) => {
     const link = `https://checkhome-app-seven.vercel.app/join/${code}`
     navigator.clipboard?.writeText(link).catch(() => {})
@@ -184,12 +223,18 @@ export function Settings({ onLogout }: SettingsProps) {
               </div>
               <ChevronRight size={18} className="text-gray-400" />
             </button>
-            <button className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-[#F8FAFC]">
+            <button
+              onClick={openLocationModal}
+              className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-[#F8FAFC]"
+            >
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-gray-100 rounded-lg">
                   <MapPin size={18} className="text-[#475569]" />
                 </div>
-                <span className="text-sm font-medium">보관 위치 관리</span>
+                <div className="text-left">
+                  <p className="text-sm font-medium">보관 위치 관리</p>
+                  <p className="text-xs text-[#94A3B8]">냉장고·창고 등 보관 장소 목록</p>
+                </div>
               </div>
               <ChevronRight size={18} className="text-gray-400" />
             </button>
@@ -478,6 +523,58 @@ export function Settings({ onLogout }: SettingsProps) {
                   </label>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLocationModal && (
+        <div className="absolute inset-0 bg-black/50 flex items-end z-50">
+          <div className="bg-white w-full rounded-t-2xl max-h-[85vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-4 py-3 flex items-center justify-between">
+              <h2 className="text-base font-bold">보관 위치 관리</h2>
+              <button onClick={() => setShowLocationModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="px-4 py-4">
+              <div className="bg-gray-100 rounded-lg p-3 mb-4">
+                <p className="text-xs text-[#475569]">제품 등록 시 선택할 보관 장소예요. 가족과 공통으로 사용됩니다.</p>
+              </div>
+              <div className="flex gap-2 mb-4">
+                <input
+                  type="text"
+                  value={newLoc}
+                  onChange={(e) => setNewLoc(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleAddLocation() }}
+                  placeholder="새 위치 (예: 베란다 창고)"
+                  className="flex-1 border border-[#E2E8F0] rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#14B8A6]"
+                />
+                <button onClick={handleAddLocation} className="px-4 py-2.5 bg-[#14B8A6] text-white rounded-xl text-sm font-semibold flex items-center gap-1">
+                  <Plus size={16} />추가
+                </button>
+              </div>
+              {locLoading ? (
+                <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-[#14B8A6]" /></div>
+              ) : locations.length === 0 ? (
+                <p className="text-sm text-[#94A3B8] text-center py-8">등록된 위치가 없어요. 위에서 추가해보세요.</p>
+              ) : (
+                <div className="space-y-1">
+                  {locations.map((loc) => (
+                    <div key={loc.id} className="flex items-center justify-between py-2.5 px-1 border-b border-[#F1F5F9] last:border-0">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gray-100 rounded-lg">
+                          <MapPin size={16} className="text-[#475569]" />
+                        </div>
+                        <span className="text-sm font-medium text-[#1A1A1A]">{loc.name}</span>
+                      </div>
+                      <button onClick={() => handleDeleteLocation(loc.id)} className="p-2 hover:bg-rose-50 rounded-lg">
+                        <Trash2 size={16} className="text-rose-400" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
