@@ -13,6 +13,15 @@ from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, OAuth
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _auto_grant_admin(user: User, db: Session) -> None:
+    """ADMIN_EMAIL 환경변수에 등록된 이메일 로그인 시 자동으로 관리자 권한 부여"""
+    admin_emails = getattr(settings, "ADMIN_EMAIL", "") or ""
+    emails = [e.strip() for e in admin_emails.split(",") if e.strip()]
+    if user.email in emails and not user.is_admin:
+        user.is_admin = True
+        db.commit()
+
+
 @router.post("/register", response_model=TokenResponse)
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == req.email).first():
@@ -34,6 +43,7 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == req.email).first()
     if not user or not verify_password(req.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="이메일 또는 비밀번호가 잘못되었습니다")
+    _auto_grant_admin(user, db)
     token = create_access_token({"sub": str(user.id)})
     return TokenResponse(access_token=token, user_id=user.id, name=user.name, email=user.email, is_admin=user.is_admin)
 
@@ -139,5 +149,6 @@ def _social_login(email: str, name: str, db: Session) -> TokenResponse:
         db.add(user)
         db.commit()
         db.refresh(user)
+    _auto_grant_admin(user, db)
     token = create_access_token({"sub": str(user.id)})
     return TokenResponse(access_token=token, user_id=user.id, name=user.name, email=user.email, is_admin=user.is_admin)

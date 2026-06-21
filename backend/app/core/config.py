@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     STRIPE_PRICE_STARTER: Optional[str] = None  # Stripe price ID for starter plan
     STRIPE_PRICE_PRO: Optional[str] = None       # Stripe price ID for pro plan
     STRIPE_PRICE_PREMIUM: Optional[str] = None   # Stripe price ID for premium plan
+    # 관리자 자동 부여 이메일 (쉼표 구분, 예: admin@example.com,ceo@example.com)
+    ADMIN_EMAIL: Optional[str] = None
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
