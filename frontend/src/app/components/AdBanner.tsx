@@ -6,6 +6,12 @@ const ICONS = { package: Package, star: Star, shield: Shield, zap: Zap }
 // Google AdSense 광고 단위 (VITE_ADSENSE_CLIENT 환경변수가 있으면 실제 광고, 없으면 하우스 광고)
 const ADSENSE_CLIENT = import.meta.env.VITE_ADSENSE_CLIENT as string | undefined
 
+// 광고 단위 슬롯 ID — adSlot prop을 전달하지 않으면 variant별 기본값 사용
+const DEFAULT_AD_SLOTS: Record<string, string> = {
+  mid: '5913692294',    // 체크홈 중간 배너
+  bottom: '7243241361', // 체크홈 하단 배너
+}
+
 interface AdBannerProps {
   variant: 'mid' | 'bottom'
   text: string
@@ -47,9 +53,10 @@ export function AdBanner({ variant, text, subtext, icon = 'package', adSlot, onC
   const [closed, setClosed] = useState(false)
   if (closed) return null
 
-  // AdSense가 설정되어 있고 광고 슬롯이 있으면 실제 AdSense 광고 표시
-  if (ADSENSE_CLIENT && adSlot) {
-    return <AdsenseUnit adSlot={adSlot} variant={variant} />
+  // AdSense가 설정되어 있으면 실제 광고 표시 (adSlot 미전달 시 variant별 기본값 사용)
+  const slot = adSlot ?? DEFAULT_AD_SLOTS[variant]
+  if (ADSENSE_CLIENT && slot) {
+    return <AdsenseUnit adSlot={slot} variant={variant} />
   }
 
   const Icon = ICONS[icon]
