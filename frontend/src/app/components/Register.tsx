@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, CheckCircle, Sparkles, Loader2, Users, Lock } from 'lucide-react'
+import { ChevronLeft, CheckCircle, Sparkles, Loader2, Users, Lock, AlertTriangle, Camera } from 'lucide-react'
 import { createItem, analyzePhoto } from '../../api/items'
 import { getCategoryTemplates, categoryIdMap } from '../data/categoryTemplates'
 import { AdBanner } from './AdBanner'
@@ -62,6 +62,7 @@ export function Register({ onRegistered, step: externalStep, onStepChange }: Reg
   const [analyzeError, setAnalyzeError] = useState('')
   const [aiNote, setAiNote] = useState('')
   const [aiNoteWarn, setAiNoteWarn] = useState(false)
+  const [nameConfidence, setNameConfidence] = useState<'high' | 'medium' | 'low'>('high')
   // 가족에 속해 있으면 '가족과 함께 보기' 토글 노출 (기본 ON = 같이 챙기기)
   const [hasFamily, setHasFamily] = useState(false)
   const [shareWithFamily, setShareWithFamily] = useState(true)
@@ -78,9 +79,11 @@ export function Register({ onRegistered, step: externalStep, onStepChange }: Reg
     setAnalyzeError('')
     setAiNote('')
     setAiNoteWarn(false)
+    setNameConfidence('high')
     try {
       const result = await analyzePhoto(photoList)
       if (result.name) setProductName(result.name)
+      setNameConfidence(result.name_confidence || 'medium')
       const nd = normalizeDate(result.expiry_date)
       if (nd) setExpiryDate(nd)
       if (result.memo) setMemo(result.memo)
@@ -167,6 +170,7 @@ export function Register({ onRegistered, step: externalStep, onStepChange }: Reg
     setAiNote('')
     setAiNoteWarn(false)
     setAnalyzeError('')
+    setNameConfidence('high')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -328,6 +332,12 @@ export function Register({ onRegistered, step: externalStep, onStepChange }: Reg
             busy={analyzing}
             hint="제품의 여러 면(앞·뒤·옆)을 찍으면 AI가 더 정확히 읽어요"
           />
+          {photos.length === 0 && !analyzing && (
+            <p className="text-xs text-[#94A3B8] mt-2 flex items-center gap-1">
+              <Camera size={12} className="flex-shrink-0" />
+              제품명이 잘 보이는 면을 가까이 찍으면 자동으로 채워져요
+            </p>
+          )}
           {photos.length > 0 && !analyzing && (
             <button
               type="button"
@@ -343,6 +353,20 @@ export function Register({ onRegistered, step: externalStep, onStepChange }: Reg
               <Sparkles size={12} className="flex-shrink-0" />
               {aiNote}
             </p>
+          )}
+          {nameConfidence === 'low' && !analyzing && photos.length > 0 && (
+            <div className="mt-2 flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <AlertTriangle size={15} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-amber-700">제품명 인식이 불확실해요</p>
+                <p className="text-xs text-amber-600 mt-0.5">제품명이 선명하게 보이는 면을 추가로 찍어주세요</p>
+              </div>
+              <label className="flex items-center gap-1 px-2 py-1.5 bg-amber-100 rounded-lg text-xs font-semibold text-amber-700 cursor-pointer flex-shrink-0">
+                <Camera size={12} />
+                추가 촬영
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => addPhoto(e.target.files?.[0], false)} />
+              </label>
+            </div>
           )}
           {analyzeError && <p className="text-rose-500 text-xs mt-2">{analyzeError}</p>}
         </div>

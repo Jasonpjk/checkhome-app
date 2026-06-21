@@ -94,3 +94,4 @@ class PhotoAnalyzeResponse(BaseModel):
     expiry_date: str
     memo: str
     confidence: str
+    name_confidence: str = "medium"

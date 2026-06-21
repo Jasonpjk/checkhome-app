@@ -53,6 +53,7 @@ export interface PhotoAnalysis {
   expiry_date: string
   memo: string
   confidence: 'high' | 'medium' | 'low'
+  name_confidence: 'high' | 'medium' | 'low'
 }
 
 export async function fetchStats(): Promise<ItemStats> {
