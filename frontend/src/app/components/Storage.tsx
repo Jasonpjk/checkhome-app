@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Search, SlidersHorizontal, X, ChevronRight, Lock, Users } from 'lucide-react'
-import { fetchItems, Item } from '../../api/items'
+import { Search, SlidersHorizontal, X, ChevronRight, Lock, Users, RotateCcw } from 'lucide-react'
+import { fetchItems, restoreItem, Item } from '../../api/items'
 import { statusConfig } from '../data/statusConfig'
 import { AdBanner } from './AdBanner'
+
+const ACTION_LABEL: Record<string, string> = {
+  completed: '사용완료', replaced: '교체함', disposed: '폐기함', kept: '보관',
+}
 
 const categories = ['전체', '식품', '약품', '욕실/화장품', '세제/청소', '필터/가전', '차량']
 const statusFilters = ['전체', '정상', '주의', '임박', '만료', '점검필요']
@@ -26,20 +30,32 @@ export function Storage({ onItemClick, initialCategory, smartFilter, onFilterCha
   const [sortBy, setSortBy] = useState<SortOption>('deadline')
   const [showFilters, setShowFilters] = useState(false)
   const [activeSmartFilter, setActiveSmartFilter] = useState<SmartFilter>(smartFilter || null)
+  // 보관 중(active) ↔ 완료·폐기함(archive)
+  const [viewMode, setViewMode] = useState<'active' | 'archive'>('active')
 
   const loadItems = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await fetchItems()
+      const data = await fetchItems(undefined, viewMode === 'archive' ? { active: false } : undefined)
       setItems(data)
     } catch (err) {
       console.error(err)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [viewMode])
 
   useEffect(() => { loadItems() }, [loadItems])
+
+  const handleRestore = async (id: number, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await restoreItem(id)
+      setItems((prev) => prev.filter((i) => i.id !== id))
+    } catch (err) {
+      console.error(err)
+    }
+  }
 
   useEffect(() => {
     if (initialCategory) { setSelectedCategory(initialCategory); setActiveSmartFilter(null) }
@@ -51,6 +67,11 @@ export function Storage({ onItemClick, initialCategory, smartFilter, onFilterCha
 
   const filtered = items.filter((item) => {
     const matchSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    // 완료·폐기함은 스마트필터/상태필터 무시 (이미 처리된 항목 모음)
+    if (viewMode === 'archive') {
+      const matchCat = selectedCategory === '전체' || item.category === selectedCategory
+      return matchCat && matchSearch
+    }
     if (activeSmartFilter === 'action-needed') {
       return ['expired', 'imminent', 'check-needed'].includes(item.status) && matchSearch
     }
@@ -78,7 +99,18 @@ export function Storage({ onItemClick, initialCategory, smartFilter, onFilterCha
   return (
     <div className="h-full overflow-y-auto pb-20 bg-[#F8F9FA]">
       <div className="bg-white px-6 pt-10 pb-6 shadow-sm">
-        <h1 className="text-3xl font-bold text-[#1A1A1A] mb-6">보관함</h1>
+        <h1 className="text-3xl font-bold text-[#1A1A1A] mb-4">보관함</h1>
+        <div className="flex gap-1 mb-4 bg-[#F1F5F9] rounded-xl p-1">
+          {([['active', '보관 중'], ['archive', '완료·폐기함']] as const).map(([mode, label]) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${viewMode === mode ? 'bg-white text-[#14B8A6] shadow-sm' : 'text-[#64748B]'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="relative">
           <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
           <input
@@ -170,41 +202,68 @@ export function Storage({ onItemClick, initialCategory, smartFilter, onFilterCha
         ) : sorted.length > 0 ? (
           <div className="space-y-3">
             {sorted.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => onItemClick?.(item)}
-                className="w-full bg-white rounded-xl p-4 shadow-sm hover:shadow-md border border-[#E2E8F0] hover:border-[#14B8A6] transition-all text-left group"
-              >
-                <div className="flex items-start justify-between gap-3">
+              viewMode === 'archive' ? (
+                <div
+                  key={item.id}
+                  className="w-full bg-white rounded-xl p-4 shadow-sm border border-[#E2E8F0] flex items-center justify-between gap-3"
+                >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${statusConfig[item.status].badge}`}>
-                        {statusConfig[item.status].label}
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-[#64748B]">
+                        {ACTION_LABEL[item.last_action || ''] || '처리됨'}
                       </span>
                       <span className="text-xs text-[#94A3B8]">{item.category}</span>
-                      {item.family_id && (item.is_family_shared ? (
-                        <span className="inline-flex items-center gap-0.5 text-xs text-teal-600 font-medium">
-                          <Users size={11} />{item.created_by_name || '공유'}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-0.5 text-xs text-[#94A3B8]">
-                          <Lock size={11} />나만
-                        </span>
-                      ))}
                     </div>
-                    <h3 className="font-semibold text-[#1A1A1A] mb-1 truncate">{item.name}</h3>
-                    <p className="text-sm text-[#475569]">{formatDate(item)}</p>
+                    <h3 className="font-semibold text-[#475569] mb-0.5 truncate line-through">{item.name}</h3>
                   </div>
-                  <ChevronRight size={20} className="text-[#CBD5E1] group-hover:text-[#14B8A6] flex-shrink-0 mt-1" />
+                  <button
+                    onClick={(e) => handleRestore(item.id, e)}
+                    className="flex items-center gap-1 px-3 py-2 bg-[#14B8A6] text-white rounded-lg text-xs font-semibold hover:bg-[#0D9488] flex-shrink-0"
+                  >
+                    <RotateCcw size={14} />복구
+                  </button>
                 </div>
-              </button>
+              ) : (
+                <button
+                  key={item.id}
+                  onClick={() => onItemClick?.(item)}
+                  className="w-full bg-white rounded-xl p-4 shadow-sm hover:shadow-md border border-[#E2E8F0] hover:border-[#14B8A6] transition-all text-left group"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${statusConfig[item.status].badge}`}>
+                          {statusConfig[item.status].label}
+                        </span>
+                        <span className="text-xs text-[#94A3B8]">{item.category}</span>
+                        {item.family_id && (item.is_family_shared ? (
+                          <span className="inline-flex items-center gap-0.5 text-xs text-teal-600 font-medium">
+                            <Users size={11} />{item.created_by_name || '공유'}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-0.5 text-xs text-[#94A3B8]">
+                            <Lock size={11} />나만
+                          </span>
+                        ))}
+                      </div>
+                      <h3 className="font-semibold text-[#1A1A1A] mb-1 truncate">{item.name}</h3>
+                      <p className="text-sm text-[#475569]">{formatDate(item)}</p>
+                    </div>
+                    <ChevronRight size={20} className="text-[#CBD5E1] group-hover:text-[#14B8A6] flex-shrink-0 mt-1" />
+                  </div>
+                </button>
+              )
             ))}
           </div>
         ) : (
           <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-[#E2E8F0]">
             <Search size={28} className="text-[#94A3B8] mx-auto mb-3" />
-            <p className="text-sm text-[#475569] font-medium mb-1">항목이 없습니다</p>
-            <p className="text-xs text-[#94A3B8]">다른 필터를 선택해보세요</p>
+            <p className="text-sm text-[#475569] font-medium mb-1">
+              {viewMode === 'archive' ? '완료·폐기한 항목이 없어요' : '항목이 없습니다'}
+            </p>
+            <p className="text-xs text-[#94A3B8]">
+              {viewMode === 'archive' ? '사용완료·교체·폐기한 항목이 여기 모여요' : '다른 필터를 선택해보세요'}
+            </p>
           </div>
         )}
         <div className="-mx-6 mt-4">

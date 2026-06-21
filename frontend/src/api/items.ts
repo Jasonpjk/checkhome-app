@@ -14,6 +14,8 @@ export interface Item {
   is_family_shared: boolean
   family_id: number | null
   created_by_name: string | null
+  is_active: boolean
+  last_action: string | null
   quantity: number
   memo: string | null
   risk: 'high' | 'medium' | 'low'
@@ -58,9 +60,20 @@ export async function fetchStats(): Promise<ItemStats> {
   return data
 }
 
-export async function fetchItems(category?: string): Promise<Item[]> {
-  const params = category && category !== '전체' ? { category } : {}
+export async function fetchItems(
+  category?: string,
+  opts?: { active?: boolean },
+): Promise<Item[]> {
+  const params: Record<string, string | boolean> = {}
+  if (category && category !== '전체') params.category = category
+  // active 미지정 = 보관 중(서버 기본). active:false = 완료·폐기함.
+  if (opts && opts.active === false) params.active = false
   const { data } = await api.get('/items', { params })
+  return data
+}
+
+export async function restoreItem(id: number): Promise<Item> {
+  const { data } = await api.post(`/items/${id}/restore`)
   return data
 }
 

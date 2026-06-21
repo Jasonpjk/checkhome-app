@@ -181,7 +181,7 @@ def _visible_items_filter(current_user: User, fam_id):
 
 
 def _get_accessible_item(db: Session, item_id: int, current_user: User) -> Item:
-    """단건 접근(조회/수정/삭제): 내 항목이거나 가족 공유 항목이면 허용."""
+    """단건 접근(조회/수정/삭제): 내 항목이거나 가족 공유 항목이면 허용. (활성 항목만)"""
     fam_id = get_user_family_id(db, current_user.id)
     item = db.query(Item).filter(Item.id == item_id, Item.is_active == True).first()
     if not item:
@@ -191,6 +191,28 @@ def _get_accessible_item(db: Session, item_id: int, current_user: User) -> Item:
     if not (owned or shared):
         raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다")
     return item
+
+
+def _get_owned_item_any_state(db: Session, item_id: int, current_user: User) -> Item:
+    """복구 등 비활성 항목 포함 접근. is_active 조건 없이 소유/가족공유만 검사."""
+    fam_id = get_user_family_id(db, current_user.id)
+    item = db.query(Item).filter(Item.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다")
+    owned = item.user_id == current_user.id
+    shared = fam_id is not None and item.family_id == fam_id and bool(item.is_family_shared)
+    if not (owned or shared):
+        raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다")
+    return item
+
+
+def _last_action(item: Item):
+    """항목의 가장 최근 처리(사용완료/교체/폐기 등) 종류. 없으면 None."""
+    logs = item.action_logs
+    if not logs:
+        return None
+    last = max(logs, key=lambda l: l.created_at or 0)
+    return last.action_type.value if last and last.action_type else None
 
 
 def _photos_list(item: Item) -> list:
@@ -233,6 +255,8 @@ def _item_to_response(item: Item, include_photo: bool = True) -> dict:
         "is_family_shared": item.is_family_shared,
         "family_id": item.family_id,
         "created_by_name": item.owner.name if item.owner else None,
+        "is_active": item.is_active,
+        "last_action": _last_action(item),
         "quantity": item.quantity,
         "memo": item.memo,
         "risk": item.risk,
@@ -246,11 +270,14 @@ def _item_to_response(item: Item, include_photo: bool = True) -> dict:
 def list_items(
     category: Optional[str] = None,
     status: Optional[str] = None,
+    active: Optional[bool] = True,  # True=보관중(기본), False=완료·폐기함, None=전체
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     fam_id = get_user_family_id(db, current_user.id)
-    query = db.query(Item).filter(_visible_items_filter(current_user, fam_id), Item.is_active == True)
+    query = db.query(Item).filter(_visible_items_filter(current_user, fam_id))
+    if active is not None:
+        query = query.filter(Item.is_active == active)
     if category and category != "전체":
         query = query.filter(Item.category == category)
     items = query.all()
@@ -258,6 +285,20 @@ def list_items(
     if status and status != "전체":
         result = [r for r in result if r["status"] == status]
     return result
+
+
+@router.post("/{item_id}/restore", response_model=ItemResponse)
+def restore_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """완료/폐기/교체로 비활성화된 항목을 다시 보관 중으로 되돌린다."""
+    item = _get_owned_item_any_state(db, item_id, current_user)
+    item.is_active = True
+    db.commit()
+    db.refresh(item)
+    return _item_to_response(item)
 
 
 @router.post("", response_model=ItemResponse)

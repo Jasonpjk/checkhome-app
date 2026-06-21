@@ -63,6 +63,8 @@ class ItemResponse(BaseModel):
     is_family_shared: bool
     family_id: Optional[int] = None
     created_by_name: Optional[str] = None  # 등록한 사람 이름 (가족 공유 시 누가 등록했는지 표시)
+    is_active: bool = True
+    last_action: Optional[str] = None      # 최근 처리(completed/replaced/disposed/kept)
     quantity: int
     memo: Optional[str]
     risk: str

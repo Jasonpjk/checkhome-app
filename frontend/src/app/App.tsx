@@ -47,34 +47,45 @@ export default function App() {
   // 등록 후 보관함을 강제로 다시 불러오기 위한 키 (값이 바뀌면 Storage가 재마운트되어 refetch)
   const [storageRefreshKey, setStorageRefreshKey] = useState(0)
 
-  // ── 휴대폰 뒤로가기(하드웨어/제스처) 처리 ──
-  // SPA라 상세/수정/필터 화면이 브라우저 history를 안 쌓아, 뒤로가기가 앱을 종료시키는 문제를 막는다.
-  // 서브화면이 열려있는 깊이만큼 history 엔트리를 유지하고, 뒤로가기(popstate) 시 최상위 화면 하나만 닫는다.
-  const filteredStorage =
-    !selectedItem && !editingItem && !selectedVehicle &&
-    activeTab === 'storage' && (!!selectedCategory || !!smartFilter)
-  const overlayDepth =
-    (filteredStorage ? 1 : 0) +
-    ((selectedItem || selectedVehicle) ? 1 : 0) +
-    (editingItem ? 1 : 0)
+  // ── 휴대폰 뒤로가기 통합 처리 (단일 네비게이션 스택) ──
+  // 열린 서브화면을 '순서 있는 배열'로 표현하고, 우리가 실제 push한 history 엔트리 수(pushedRef)를
+  // 원하는 깊이에 idempotent하게 맞춘다. 깊이가 같아도 '무엇이 열렸는지'가 바뀌면 정확히 1개가 push/pop된다.
+  // (이전 '숫자 깊이 + skip 플래그' 방식의 desync 버그를 근본 제거)
+  const overlay = [
+    (!!selectedCategory || !!smartFilter) && activeTab === 'storage' ? 'filter' : null,
+    selectedVehicle ? 'vehicle' : null,
+    selectedItem ? 'item' : null,
+    editingItem ? 'edit' : null,
+  ].filter(Boolean) as string[]
 
+  const pushedRef = useRef(0)
+  const programmaticRef = useRef(0)
   const closeTopRef = useRef<() => void>(() => {})
   closeTopRef.current = () => {
     if (editingItem) setEditingItem(null)
-    else if (selectedVehicle) setSelectedVehicle(null)
     else if (selectedItem) setSelectedItem(null)
-    else if (filteredStorage) { setSelectedCategory(null); setSmartFilter(null); setActiveTab('home') }
+    else if (selectedVehicle) setSelectedVehicle(null)
+    else if (selectedCategory || smartFilter) { setSelectedCategory(null); setSmartFilter(null); setActiveTab('home') }
   }
-  const skipNextPushRef = useRef(false)
+
   useEffect(() => {
-    if (overlayDepth === 0) return
-    // popstate로 화면을 닫은 직후엔 엔트리가 이미 소비됐으므로 중복 push를 한 번 건너뛴다.
-    if (skipNextPushRef.current) skipNextPushRef.current = false
-    else window.history.pushState({ chOverlay: true }, '')
-    const onPop = () => { skipNextPushRef.current = true; closeTopRef.current() }
+    const want = overlay.length
+    // 더 깊어졌으면 부족한 만큼만 push
+    while (pushedRef.current < want) { window.history.pushState({ ch: true }, ''); pushedRef.current++ }
+    // 코드가 직접 화면을 닫아 얕아졌으면 남는 엔트리를 back으로 정리(이 back은 무시되도록 표시)
+    while (pushedRef.current > want) { pushedRef.current--; programmaticRef.current++; window.history.back() }
+  }, [overlay.join('|')])
+
+  useEffect(() => {
+    const onPop = () => {
+      // 우리가 정리용으로 부른 back이면 무시
+      if (programmaticRef.current > 0) { programmaticRef.current--; return }
+      // 사용자가 누른 뒤로가기 → 최상위 화면 하나만 닫는다
+      if (pushedRef.current > 0) { pushedRef.current--; closeTopRef.current() }
+    }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
-  }, [overlayDepth])
+  }, [])
 
   useEffect(() => {
     if (!hasOAuthParams()) return
@@ -143,7 +154,7 @@ export default function App() {
             onBack={() => window.history.back()}
             onSaved={(updated) => {
               setSelectedItem(updated)
-              window.history.back()
+              setEditingItem(null)
             }}
           />
         </div>
@@ -172,7 +183,7 @@ export default function App() {
             item={selectedItem}
             onBack={() => window.history.back()}
             onEdit={() => setEditingItem(selectedItem)}
-            onDeleted={() => { window.history.back(); setActiveTab('storage'); setStorageRefreshKey((k) => k + 1) }}
+            onDeleted={() => { setSelectedItem(null); setActiveTab('storage'); setStorageRefreshKey((k) => k + 1) }}
           />
         </div>
       </div>

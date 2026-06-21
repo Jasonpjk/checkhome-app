@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { ArrowLeft, MapPin, User, Edit2, CheckCircle, Trash2, RefreshCw, Archive, Users, Lock } from 'lucide-react'
-import { Item, recordAction, deleteItem, updateItem, fetchItem } from '../../api/items'
+import { useState, useEffect, useRef } from 'react'
+import { ArrowLeft, MapPin, User, Edit2, CheckCircle, Trash2, RefreshCw, Archive, Users, Lock, AlertCircle, RotateCcw } from 'lucide-react'
+import { Item, recordAction, deleteItem, updateItem, fetchItem, restoreItem } from '../../api/items'
 import { statusConfig, riskConfig } from '../data/statusConfig'
 import { AdBanner } from './AdBanner'
 import { fileToCompressedDataUrl } from '../utils/image'
@@ -17,6 +17,9 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
   const [photos, setPhotos] = useState<string[]>(item.photo_url ? [item.photo_url] : [])
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [actionLabel, setActionLabel] = useState('')
+  const [actionType, setActionType] = useState('')
+  const [actionError, setActionError] = useState('')
+  const undoTimerRef = useRef<number | undefined>(undefined)
   const [loading, setLoading] = useState(false)
   const [savingPhoto, setSavingPhoto] = useState(false)
   // 가족 공유 상태 (항목별로 '가족 공유' ↔ '나만 보기' 전환 가능)
@@ -85,19 +88,37 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
 
   const handleAction = async (action_type: string, label: string, deactivates = false) => {
     setLoading(true)
+    setActionError('')
     try {
       await recordAction(item.id, action_type)
+      setActionType(action_type)
       setActionLabel(label)
       setShowSuccessModal(true)
-      setTimeout(() => {
-        setShowSuccessModal(false)
-        if (deactivates) onDeleted()
-      }, 1500)
-    } catch (err) {
-      console.error(err)
+      if (deactivates) {
+        // 항목이 '완료·폐기함'으로 이동. 5초 안에 되돌리기 가능, 이후 자동으로 화면 닫힘.
+        undoTimerRef.current = window.setTimeout(() => {
+          setShowSuccessModal(false)
+          onDeleted()
+        }, 5000)
+      } else {
+        window.setTimeout(() => setShowSuccessModal(false), 1500)
+      }
+    } catch (err: any) {
+      setActionError(err?.response?.data?.detail || '처리 중 오류가 발생했어요. 인터넷 상태를 확인하고 다시 시도해주세요.')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleUndo = async () => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+    setShowSuccessModal(false)
+    try {
+      await restoreItem(item.id)
+    } catch (err) {
+      console.error(err)
+    }
+    // 화면은 그대로 유지 (onDeleted 호출 안 함)
   }
 
   const handleDelete = async () => {
@@ -275,14 +296,45 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
         </div>
       </div>
 
-      {showSuccessModal && (
-        <div className="absolute inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-6">
-          <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-            <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle size={32} className="text-white" />
+      {showSuccessModal && (() => {
+        const cfg: Record<string, { Icon: typeof CheckCircle; grad: string; desc: string; deact: boolean }> = {
+          completed: { Icon: CheckCircle, grad: 'from-emerald-400 to-emerald-600', desc: '완료·폐기함으로 옮겼어요', deact: true },
+          replaced: { Icon: RefreshCw, grad: 'from-teal-400 to-teal-600', desc: '기존 항목은 완료·폐기함으로 옮겼어요', deact: true },
+          disposed: { Icon: Trash2, grad: 'from-rose-400 to-rose-600', desc: '완료·폐기함으로 옮겼어요', deact: true },
+          kept: { Icon: Archive, grad: 'from-slate-400 to-slate-500', desc: '다음에 다시 확인할게요', deact: false },
+        }
+        const c = cfg[actionType] || cfg.completed
+        return (
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-6">
+            <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+              <div className={`w-16 h-16 bg-gradient-to-br ${c.grad} rounded-full flex items-center justify-center mx-auto mb-4`}>
+                <c.Icon size={32} className="text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-[#1A1A1A] mb-2">{actionLabel}</h3>
+              <p className="text-sm text-[#64748B]">{c.desc}</p>
+              {c.deact && (
+                <button
+                  onClick={handleUndo}
+                  className="mt-5 inline-flex items-center gap-1.5 px-4 py-2.5 bg-[#F1F5F9] text-[#1A1A1A] rounded-xl text-sm font-semibold hover:bg-[#E2E8F0] transition-colors"
+                >
+                  <RotateCcw size={16} />
+                  되돌리기
+                </button>
+              )}
             </div>
-            <h3 className="text-2xl font-bold text-[#1A1A1A] mb-2">{actionLabel}</h3>
-            <p className="text-sm text-[#64748B]">처리가 완료되었습니다</p>
+          </div>
+        )
+      })()}
+
+      {actionError && (
+        <div className="absolute inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-6" onClick={() => setActionError('')}>
+          <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle size={32} className="text-rose-500" />
+            </div>
+            <h3 className="text-lg font-bold text-[#1A1A1A] mb-2">처리하지 못했어요</h3>
+            <p className="text-sm text-[#64748B] mb-5">{actionError}</p>
+            <button onClick={() => setActionError('')} className="w-full py-3 bg-[#14B8A6] text-white rounded-xl text-sm font-semibold">확인</button>
           </div>
         </div>
       )}
