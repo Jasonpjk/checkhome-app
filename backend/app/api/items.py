@@ -1,4 +1,5 @@
 import base64
+import json
 import re
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
@@ -192,6 +193,29 @@ def _get_accessible_item(db: Session, item_id: int, current_user: User) -> Item:
     return item
 
 
+def _photos_list(item: Item) -> list:
+    """저장된 여러 장 사진을 리스트로. 없으면 대표 사진 1장으로 폴백."""
+    if item.photos:
+        try:
+            return json.loads(item.photos) or ([item.photo_url] if item.photo_url else [])
+        except Exception:
+            return [item.photo_url] if item.photo_url else []
+    return [item.photo_url] if item.photo_url else []
+
+
+def _apply_photos(data: dict) -> None:
+    """요청 data의 photos(list)를 DB 저장형(JSON 문자열)으로 바꾸고 대표 photo_url 동기화."""
+    if "photos" not in data:
+        return
+    photos_list = data.pop("photos")
+    if photos_list:
+        data["photos"] = json.dumps(photos_list)
+        data["photo_url"] = photos_list[0]
+    else:
+        data["photos"] = None
+        data["photo_url"] = None
+
+
 def _item_to_response(item: Item, include_photo: bool = True) -> dict:
     return {
         "id": item.id,
@@ -204,6 +228,7 @@ def _item_to_response(item: Item, include_photo: bool = True) -> dict:
         # 목록/통계 응답에서는 사진(base64)을 제외해 응답을 가볍게 유지.
         # 상세 화면이 GET /items/{id} 로 사진을 따로 불러옴.
         "photo_url": item.photo_url if include_photo else None,
+        "photos": _photos_list(item) if include_photo else None,
         "handler_name": item.handler_name,
         "is_family_shared": item.is_family_shared,
         "family_id": item.family_id,
@@ -242,6 +267,7 @@ def create_item(
     current_user: User = Depends(get_current_user),
 ):
     data = req.model_dump()
+    _apply_photos(data)
     # 담당자 미지정 시 로그인한 사용자 이름을 기본값으로
     if not data.get("handler_name"):
         data["handler_name"] = current_user.name
@@ -369,6 +395,7 @@ def update_item(
 ):
     item = _get_accessible_item(db, item_id, current_user)
     updates = req.model_dump(exclude_unset=True)
+    _apply_photos(updates)
     for key, value in updates.items():
         setattr(item, key, value)
     # 항목을 '가족 공유'로 바꾸면 내 가족에 연결해 가족 전원이 보게 한다.

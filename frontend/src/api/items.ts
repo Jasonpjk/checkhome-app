@@ -9,6 +9,7 @@ export interface Item {
   open_date: string | null
   pao_days: number | null
   photo_url: string | null
+  photos: string[] | null
   handler_name: string | null
   is_family_shared: boolean
   family_id: number | null
@@ -36,6 +37,7 @@ export interface CreateItemPayload {
   open_date?: string
   pao_days?: number
   photo_url?: string | null
+  photos?: string[] | null
   handler_name?: string
   is_family_shared?: boolean
   quantity?: number

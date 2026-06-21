@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, MapPin, User, Camera, X, Edit2, CheckCircle, Trash2, RefreshCw, Archive, Loader2, Users, Lock } from 'lucide-react'
+import { ArrowLeft, MapPin, User, Edit2, CheckCircle, Trash2, RefreshCw, Archive, Users, Lock } from 'lucide-react'
 import { Item, recordAction, deleteItem, updateItem, fetchItem } from '../../api/items'
 import { statusConfig, riskConfig } from '../data/statusConfig'
 import { AdBanner } from './AdBanner'
 import { fileToCompressedDataUrl } from '../utils/image'
+import { PhotoMultiPicker } from './PhotoMultiPicker'
 
 interface ItemDetailProps {
   item: Item
@@ -13,7 +14,7 @@ interface ItemDetailProps {
 }
 
 export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps) {
-  const [photoPreview, setPhotoPreview] = useState<string | null>(item.photo_url)
+  const [photos, setPhotos] = useState<string[]>(item.photo_url ? [item.photo_url] : [])
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [actionLabel, setActionLabel] = useState('')
   const [loading, setLoading] = useState(false)
@@ -30,7 +31,8 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
     fetchItem(item.id)
       .then((full) => {
         if (!active) return
-        if (full.photo_url) setPhotoPreview(full.photo_url)
+        if (full.photos && full.photos.length > 0) setPhotos(full.photos)
+        else if (full.photo_url) setPhotos([full.photo_url])
         setShared(full.is_family_shared)
         setFamilyId(full.family_id)
         setCreatedBy(full.created_by_name)
@@ -52,14 +54,15 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
     }
   }
 
-  const handlePhotoPick = async (file?: File) => {
-    if (!file) return
+  const handleAddPhoto = async (file: File) => {
+    if (photos.length >= 8) return
     setSavingPhoto(true)
     try {
       const dataUrl = await fileToCompressedDataUrl(file)
       if (dataUrl.length > 7_000_000) return
-      setPhotoPreview(dataUrl)
-      await updateItem(item.id, { photo_url: dataUrl })
+      const next = [...photos, dataUrl]
+      setPhotos(next)
+      await updateItem(item.id, { photos: next })
     } catch (err) {
       console.error(err)
     } finally {
@@ -67,10 +70,11 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
     }
   }
 
-  const handlePhotoRemove = async () => {
-    setPhotoPreview(null)
+  const handleRemovePhoto = async (index: number) => {
+    const next = photos.filter((_, i) => i !== index)
+    setPhotos(next)
     try {
-      await updateItem(item.id, { photo_url: null })
+      await updateItem(item.id, { photos: next })
     } catch (err) {
       console.error(err)
     }
@@ -173,30 +177,10 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
 
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#E2E8F0]">
             <h3 className="text-sm font-semibold text-[#1A1A1A] mb-4">제품 사진</h3>
-            {photoPreview ? (
-              <div className="relative aspect-video bg-[#F8FAFC] rounded-xl overflow-hidden">
-                <img src={photoPreview} alt="Product" className="w-full h-full object-cover" />
-                <button onClick={handlePhotoRemove} className="absolute top-3 right-3 p-2 bg-white rounded-lg shadow-lg">
-                  <X size={18} />
-                </button>
-              </div>
-            ) : (
-              <label className="w-full aspect-video bg-[#F8FAFC] rounded-xl flex flex-col items-center justify-center border-2 border-dashed border-[#E2E8F0] hover:border-[#14B8A6] hover:bg-teal-50 transition-all cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={savingPhoto}
-                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; handlePhotoPick(f) }}
-                />
-                {savingPhoto ? (
-                  <Loader2 size={32} className="text-[#14B8A6] mb-2 animate-spin" />
-                ) : (
-                  <Camera size={32} className="text-[#94A3B8] mb-2" />
-                )}
-                <span className="text-sm text-[#64748B] font-medium">{savingPhoto ? '저장 중...' : '사진 추가'}</span>
-              </label>
+            {photos.length > 0 && (
+              <img src={photos[0]} alt="대표 사진" className="w-full aspect-video object-cover rounded-xl bg-[#F8FAFC] mb-3" />
             )}
+            <PhotoMultiPicker photos={photos} onAdd={handleAddPhoto} onRemove={handleRemovePhoto} max={8} busy={savingPhoto} />
           </div>
 
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#E2E8F0]">

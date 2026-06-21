@@ -4,6 +4,8 @@ from typing import Optional, List
 
 # data URL 문자열 안전 상한 (약 5MB 디코딩 분량). 정상 사진은 프론트 자동 압축으로 훨씬 작음.
 MAX_PHOTO_CHARS = 7_000_000
+MAX_PHOTOS = 8                       # 항목당 최대 사진 장수
+MAX_PHOTOS_TOTAL_CHARS = 24_000_000  # 여러 장 합계 상한 (DB 보호)
 
 
 class ItemCreate(BaseModel):
@@ -14,6 +16,7 @@ class ItemCreate(BaseModel):
     open_date: Optional[date] = None
     pao_days: Optional[int] = None
     photo_url: Optional[str] = None
+    photos: Optional[List[str]] = None
     handler_name: Optional[str] = None
     is_family_shared: bool = False
     quantity: int = 1
@@ -25,6 +28,19 @@ class ItemCreate(BaseModel):
     def _limit_photo_size(cls, v: Optional[str]) -> Optional[str]:
         if v is not None and len(v) > MAX_PHOTO_CHARS:
             raise ValueError("이미지가 너무 큽니다 (최대 약 5MB)")
+        return v
+
+    @field_validator("photos")
+    @classmethod
+    def _limit_photos(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        if not v:
+            return v
+        if len(v) > MAX_PHOTOS:
+            raise ValueError(f"사진은 최대 {MAX_PHOTOS}장까지 첨부할 수 있습니다")
+        if any(len(p) > MAX_PHOTO_CHARS for p in v):
+            raise ValueError("이미지 한 장이 너무 큽니다 (최대 약 5MB)")
+        if sum(len(p) for p in v) > MAX_PHOTOS_TOTAL_CHARS:
+            raise ValueError("사진 용량 합계가 너무 큽니다")
         return v
 
 
@@ -42,6 +58,7 @@ class ItemResponse(BaseModel):
     open_date: Optional[date]
     pao_days: Optional[int]
     photo_url: Optional[str]
+    photos: Optional[List[str]] = None
     handler_name: Optional[str]
     is_family_shared: bool
     family_id: Optional[int] = None

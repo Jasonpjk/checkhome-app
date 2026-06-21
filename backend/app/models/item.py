@@ -60,7 +60,8 @@ class Item(Base):
     expiry_date = Column(Date, nullable=True)
     open_date = Column(Date, nullable=True)
     pao_days = Column(Integer, nullable=True)
-    photo_url = Column(String, nullable=True)
+    photo_url = Column(String, nullable=True)         # 대표 사진(첫 장) - 하위호환
+    photos = Column(Text, nullable=True)              # 여러 장 사진 (JSON 배열 문자열)
     handler_name = Column(String, nullable=True)
     is_family_shared = Column(Boolean, default=False)
     quantity = Column(Integer, default=1)

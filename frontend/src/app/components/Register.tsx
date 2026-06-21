@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Camera, ChevronLeft, CheckCircle, X, Sparkles, Loader2, Image, Users, Lock } from 'lucide-react'
+import { ChevronLeft, CheckCircle, Sparkles, Loader2, Users, Lock } from 'lucide-react'
 import { createItem, analyzePhoto } from '../../api/items'
 import { getCategoryTemplates, categoryIdMap } from '../data/categoryTemplates'
 import { AdBanner } from './AdBanner'
@@ -7,6 +7,7 @@ import { fileToCompressedDataUrl } from '../utils/image'
 import { useAuthStore } from '../../store/authStore'
 import { getMyFamily } from '../../api/families'
 import { fetchLocations } from '../../api/locations'
+import { PhotoMultiPicker } from './PhotoMultiPicker'
 
 const categories = [
   { id: 'food', name: '식품', icon: '🍎' },
@@ -49,7 +50,7 @@ export function Register({ onRegistered }: RegisterProps) {
   const [memo, setMemo] = useState('')
   // 제품 사진 여러 장 (포장 형태에 따라 1장~여러 장). 첫 장이 대표 사진으로 저장됨.
   const [photos, setPhotos] = useState<string[]>([])
-  const MAX_PHOTOS = 5
+  const MAX_PHOTOS = 8
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -147,46 +148,6 @@ export function Register({ onRegistered }: RegisterProps) {
     }
   }
 
-  // 카메라/갤러리 버튼 + 추가한 사진 썸네일 그리드 (카테고리·폼 두 단계 공용)
-  const PhotoPicker = ({ jumpToForm, dark }: { jumpToForm: boolean; dark?: boolean }) => (
-    <div>
-      {photos.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-2">
-          {photos.map((p, i) => (
-            <div key={i} className="relative w-16 h-16">
-              <img src={p} className={`w-16 h-16 object-cover rounded-lg border ${dark ? 'border-white/40' : 'border-[#E2E8F0]'}`} alt={`사진 ${i + 1}`} />
-              <button type="button" onClick={() => removePhoto(i)}
-                className="absolute -top-1.5 -right-1.5 bg-white rounded-full shadow p-0.5 border border-[#E2E8F0]">
-                <X size={12} className="text-[#475569]" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      {photos.length < MAX_PHOTOS && (
-        <div className="grid grid-cols-2 gap-2">
-          <label className={`flex items-center justify-center gap-2 rounded-xl py-3 cursor-pointer transition-colors ${dark ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-white border-2 border-dashed border-[#E2E8F0] hover:border-[#14B8A6] hover:bg-teal-50 text-[#64748B]'}`}>
-            <input type="file" accept="image/*" capture="environment" className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; addPhoto(f, jumpToForm) }} />
-            <Camera size={18} className={dark ? 'text-white' : 'text-[#94A3B8]'} />
-            <span className="text-sm font-semibold">{photos.length === 0 ? '카메라 촬영' : '촬영 추가'}</span>
-          </label>
-          <label className={`flex items-center justify-center gap-2 rounded-xl py-3 cursor-pointer transition-colors ${dark ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-white border-2 border-dashed border-[#E2E8F0] hover:border-[#14B8A6] hover:bg-teal-50 text-[#64748B]'}`}>
-            <input type="file" accept="image/*" className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; addPhoto(f, jumpToForm) }} />
-            <Image size={18} className={dark ? 'text-white' : 'text-[#94A3B8]'} />
-            <span className="text-sm font-semibold">{photos.length === 0 ? '갤러리 선택' : '갤러리 추가'}</span>
-          </label>
-        </div>
-      )}
-      {photos.length > 0 && photos.length < MAX_PHOTOS && (
-        <p className={`text-xs mt-1.5 ${dark ? 'text-white/70' : 'text-[#94A3B8]'}`}>
-          제품명·유통기한이 다른 면에 있으면 사진을 더 추가하면 AI가 더 정확히 읽어요
-        </p>
-      )}
-    </div>
-  )
-
   const resetForm = () => {
     setStep('category')
     setSelectedCategory(null)
@@ -218,6 +179,7 @@ export function Register({ onRegistered }: RegisterProps) {
         open_date: openDate || undefined,
         pao_days: paoDays ? parseInt(paoDays) : undefined,
         photo_url: photos[0] || undefined,
+        photos: photos.length > 0 ? photos : undefined,
         quantity: parseInt(quantity) || 1,
         handler_name: handlerName || undefined,
         memo: memo || undefined,
@@ -267,7 +229,15 @@ export function Register({ onRegistered }: RegisterProps) {
               </div>
             </div>
             <div className="px-4 pb-4">
-              <PhotoPicker jumpToForm dark />
+              <PhotoMultiPicker
+                photos={photos}
+                onAdd={(f) => addPhoto(f, true)}
+                onRemove={removePhoto}
+                max={MAX_PHOTOS}
+                dark
+                busy={analyzing}
+                hint="제품명·유통기한이 다른 면에 있으면 사진을 더 추가하면 AI가 더 정확히 읽어요"
+              />
             </div>
           </div>
           {analyzeError && <p className="text-rose-500 text-xs mt-2 px-1">{analyzeError}</p>}
@@ -346,7 +316,14 @@ export function Register({ onRegistered }: RegisterProps) {
       <form onSubmit={handleSubmit} className="px-6 py-6 space-y-6">
         <div>
           <label className="block text-sm font-semibold text-[#1A1A1A] mb-3">사진 첨부</label>
-          <PhotoPicker jumpToForm={false} />
+          <PhotoMultiPicker
+            photos={photos}
+            onAdd={(f) => addPhoto(f, false)}
+            onRemove={removePhoto}
+            max={MAX_PHOTOS}
+            busy={analyzing}
+            hint="제품의 여러 면(앞·뒤·옆)을 찍으면 AI가 더 정확히 읽어요"
+          />
           {photos.length > 0 && !analyzing && (
             <button
               type="button"
