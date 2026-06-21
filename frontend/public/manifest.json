@@ -1,24 +1,58 @@
 {
-  "name": "체크홈",
+  "name": "체크홈 - 사용기한 관리",
   "short_name": "체크홈",
-  "description": "우리 집 사용기한을 가족이 함께 관리하는 앱",
-  "start_url": "/",
+  "description": "우리 집 사용기한을 가족이 함께 관리하는 앱. AI 사진 인식으로 식품·약품·화장품·소화기 등 집안 모든 제품의 유통기한을 스마트하게 관리하세요.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#ECFDF5",
   "theme_color": "#14B8A6",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
+  "lang": "ko",
+  "dir": "ltr",
+  "categories": ["lifestyle", "utilities", "health"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "새 항목 등록",
+      "short_name": "등록",
+      "description": "새 제품 유통기한 등록",
+      "url": "/?shortcut=register",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "보관함 보기",
+      "short_name": "보관함",
+      "description": "등록된 항목 목록 확인",
+      "url": "/?shortcut=storage",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

@@ -5,6 +5,7 @@ export interface AuthUser {
   name: string
   email: string
   access_token: string
+  is_admin?: boolean
 }
 
 export async function login(email: string, password: string): Promise<AuthUser> {

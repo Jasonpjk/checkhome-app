@@ -21,6 +21,13 @@ class Settings(BaseSettings):
     # 기본은 저렴한 Haiku로 처리하고, 자신 없는(흐릿/작은 글씨) 사진만 상위 모델로 자동 재시도
     ANTHROPIC_MODEL: str = "claude-haiku-4-5"
     ANTHROPIC_ESCALATION_MODEL: str = "claude-opus-4-8"
+    # Stripe 결제
+    STRIPE_SECRET_KEY: Optional[str] = None
+    STRIPE_PUBLISHABLE_KEY: Optional[str] = None
+    STRIPE_WEBHOOK_SECRET: Optional[str] = None
+    STRIPE_PRICE_STARTER: Optional[str] = None  # Stripe price ID for starter plan
+    STRIPE_PRICE_PRO: Optional[str] = None       # Stripe price ID for pro plan
+    STRIPE_PRICE_PREMIUM: Optional[str] = None   # Stripe price ID for premium plan
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

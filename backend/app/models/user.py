@@ -17,3 +17,4 @@ class User(Base):
     family_memberships = relationship("FamilyMember", back_populates="user")
     items = relationship("Item", back_populates="owner", foreign_keys="Item.user_id")
     vehicles = relationship("Vehicle", back_populates="owner")
+    subscription = relationship("Subscription", back_populates="user", uselist=False)

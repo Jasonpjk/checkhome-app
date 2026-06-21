@@ -113,7 +113,7 @@ export default function App() {
 
     socialLogin(provider, code, redirectUri)
       .then((result) => {
-        setAuth({ user_id: result.user_id, name: result.name, email: result.email }, result.access_token)
+        setAuth({ user_id: result.user_id, name: result.name, email: result.email, is_admin: result.is_admin }, result.access_token)
         setCurrentScreen('main')
       })
       .catch(() => {
