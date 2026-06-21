@@ -19,6 +19,8 @@ export function Login({ onLogin }: LoginProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showTerms, setShowTerms] = useState(false)
+  const [toast, setToast] = useState('')
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -198,7 +200,7 @@ export function Login({ onLogin }: LoginProps) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#1A1A1A] text-white py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-[#14B8A6] transition-colors mt-4 disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-[#14B8A6] to-[#0D9488] text-white py-4 rounded-xl flex items-center justify-center gap-2 shadow-md mt-4 disabled:opacity-50"
             >
               {loading ? '처리 중...' : isSignup ? '회원가입' : '로그인'}
               {!loading && <ChevronRight size={20} />}
@@ -209,7 +211,7 @@ export function Login({ onLogin }: LoginProps) {
             {!isSignup && (
               <button
                 type="button"
-                onClick={() => alert('비밀번호 재설정은 곧 제공됩니다. 그 전까지는 business10082@gmail.com 으로 문의해주세요.')}
+                onClick={() => showToast('비밀번호 재설정은 곧 제공됩니다. 지금은 고객센터로 문의해주세요.')}
                 className="text-[#94A3B8] text-sm hover:text-gray-700"
               >
                 비밀번호 재설정
@@ -224,6 +226,11 @@ export function Login({ onLogin }: LoginProps) {
           </div>
         </div>
       </div>
+      {toast && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[60] bg-[#1A1A1A] text-white text-sm px-4 py-2.5 rounded-full shadow-lg whitespace-nowrap">
+          {toast}
+        </div>
+      )}
     </div>
   )
 }

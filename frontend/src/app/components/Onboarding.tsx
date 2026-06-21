@@ -64,7 +64,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
         <div className="px-6 pb-safe space-y-2" style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
           <button
             onClick={handleNext}
-            className="w-full bg-[#1A1A1A] text-white py-3.5 rounded-xl flex items-center justify-center gap-2 hover:bg-[#14B8A6] transition-colors"
+            className="w-full bg-gradient-to-r from-[#14B8A6] to-[#0D9488] text-white py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-md"
           >
             {currentSlide === slides.length - 1 ? '시작하기' : '다음'}
             <ChevronRight size={20} />

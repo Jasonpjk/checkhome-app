@@ -248,7 +248,7 @@ export function Register({ onRegistered, step: externalStep, onStepChange }: Reg
               />
             </div>
           </div>
-          {analyzeError && <p className="text-rose-500 text-xs mt-2 px-1">{analyzeError}</p>}
+          {analyzeError && <p className="text-red-500 text-xs mt-2 px-1">{analyzeError}</p>}
           {aiNote && !analyzing && (
             <p className={`text-xs mt-2 px-1 flex items-center gap-1 ${aiNoteWarn ? 'text-amber-600' : 'text-[#14B8A6]'}`}>
               <Sparkles size={12} className="flex-shrink-0" />
@@ -368,7 +368,7 @@ export function Register({ onRegistered, step: externalStep, onStepChange }: Reg
               </label>
             </div>
           )}
-          {analyzeError && <p className="text-rose-500 text-xs mt-2">{analyzeError}</p>}
+          {analyzeError && <p className="text-red-500 text-xs mt-2">{analyzeError}</p>}
         </div>
 
         <div>

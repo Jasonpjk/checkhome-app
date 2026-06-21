@@ -15,6 +15,8 @@ export function Home({ onCategoryClick, onItemClick, onActionNeededClick, onThis
   const [stats, setStats] = useState<ItemStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [toast, setToast] = useState('')
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
   useEffect(() => {
     setError(false)
     fetchStats()
@@ -36,7 +38,7 @@ export function Home({ onCategoryClick, onItemClick, onActionNeededClick, onThis
             <p className="text-teal-50 text-sm">오늘 확인할 항목</p>
           </div>
           <button
-            onClick={() => alert('알림 기능은 곧 제공될 예정이에요')}
+            onClick={() => showToast('알림 기능은 곧 제공될 예정이에요')}
             className="p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
           >
             <Bell size={20} className="text-white" />
@@ -159,6 +161,11 @@ export function Home({ onCategoryClick, onItemClick, onActionNeededClick, onThis
           <AdBanner variant="bottom" text="냉장고 정수기 렌탈 1위 코웨이" subtext="월 2만원대 홈케어 서비스 신청하기" icon="zap" />
         </div>
       </div>
+      {toast && (
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-[60] bg-[#1A1A1A] text-white text-sm px-4 py-2.5 rounded-full shadow-lg whitespace-nowrap">
+          {toast}
+        </div>
+      )}
     </div>
   )
 }

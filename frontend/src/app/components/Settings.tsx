@@ -54,6 +54,9 @@ export function Settings({ onLogout }: SettingsProps) {
   const [showTermsModal, setShowTermsModal] = useState(false)
   const [toast, setToast] = useState('')
   const [exporting, setExporting] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [deleteLocConfirmId, setDeleteLocConfirmId] = useState<number | null>(null)
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -151,7 +154,11 @@ export function Settings({ onLogout }: SettingsProps) {
   }
 
   const handleManageSubscription = async () => {
-    if (!confirm('구독을 해지하시겠습니까? 현재 결제 기간이 끝날 때까지 이용 가능합니다.')) return
+    setShowCancelConfirm(true)
+  }
+
+  const doManageSubscription = async () => {
+    setShowCancelConfirm(false)
     try {
       const result = await cancelSubscription()
       showToast(result.message)
@@ -163,10 +170,13 @@ export function Settings({ onLogout }: SettingsProps) {
   }
 
   const handleLogout = () => {
-    if (confirm('로그아웃 하시겠습니까?')) {
-      clearAuth()
-      onLogout()
-    }
+    setShowLogoutConfirm(true)
+  }
+
+  const doLogout = () => {
+    setShowLogoutConfirm(false)
+    clearAuth()
+    onLogout()
   }
 
   const openFamilyModal = async () => {
@@ -264,7 +274,11 @@ export function Settings({ onLogout }: SettingsProps) {
   }
 
   const handleDeleteLocation = async (id: number) => {
-    if (!confirm('이 위치를 삭제할까요? 기존에 등록된 항목의 위치 표시는 그대로 유지됩니다.')) return
+    setDeleteLocConfirmId(id)
+  }
+
+  const doDeleteLocation = async (id: number) => {
+    setDeleteLocConfirmId(null)
     try {
       await deleteLocation(id)
       setLocations((p) => p.filter((l) => l.id !== id))
@@ -946,6 +960,45 @@ export function Settings({ onLogout }: SettingsProps) {
       {toast && (
         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-[60] bg-[#1A1A1A] text-white text-sm px-4 py-2.5 rounded-full shadow-lg whitespace-nowrap">
           {toast}
+        </div>
+      )}
+
+      {showCancelConfirm && (
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] px-6">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-lg font-bold text-[#1A1A1A] mb-2">구독 해지</h3>
+            <p className="text-sm text-[#64748B] mb-6">구독을 해지하시겠습니까? 현재 결제 기간이 끝날 때까지 이용 가능합니다.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowCancelConfirm(false)} className="flex-1 py-3 border border-[#E2E8F0] rounded-xl text-sm font-semibold text-[#475569]">취소</button>
+              <button onClick={doManageSubscription} className="flex-1 py-3 bg-red-500 text-white rounded-xl text-sm font-semibold">해지</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLogoutConfirm && (
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] px-6">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-lg font-bold text-[#1A1A1A] mb-2">로그아웃</h3>
+            <p className="text-sm text-[#64748B] mb-6">로그아웃 하시겠습니까?</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowLogoutConfirm(false)} className="flex-1 py-3 border border-[#E2E8F0] rounded-xl text-sm font-semibold text-[#475569]">취소</button>
+              <button onClick={doLogout} className="flex-1 py-3 bg-gradient-to-r from-[#14B8A6] to-[#0D9488] text-white rounded-xl text-sm font-semibold">로그아웃</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteLocConfirmId !== null && (
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] px-6">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-lg font-bold text-[#1A1A1A] mb-2">위치 삭제</h3>
+            <p className="text-sm text-[#64748B] mb-6">이 위치를 삭제할까요? 기존 항목의 위치 표시는 그대로 유지됩니다.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteLocConfirmId(null)} className="flex-1 py-3 border border-[#E2E8F0] rounded-xl text-sm font-semibold text-[#475569]">취소</button>
+              <button onClick={() => doDeleteLocation(deleteLocConfirmId)} className="flex-1 py-3 bg-red-500 text-white rounded-xl text-sm font-semibold">삭제</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -166,22 +166,28 @@ export function Vehicle({ onVehicleClick }: VehicleProps) {
               </button>
             </div>
             <form onSubmit={handleAddVehicle} className="space-y-4">
-              <input
-                type="text"
-                placeholder="차량명 (예: 아빠 차)"
-                value={vehicleName}
-                onChange={(e) => setVehicleName(e.target.value)}
-                className="w-full bg-[#F8FAFC] rounded-xl px-4 py-3 text-sm border border-[#E2E8F0] outline-none focus:ring-2 focus:ring-[#14B8A6]"
-                required
-              />
-              <input
-                type="text"
-                placeholder="차량번호 (예: 12가3456)"
-                value={vehiclePlate}
-                onChange={(e) => setVehiclePlate(e.target.value)}
-                className="w-full bg-[#F8FAFC] rounded-xl px-4 py-3 text-sm border border-[#E2E8F0] outline-none focus:ring-2 focus:ring-[#14B8A6]"
-                required
-              />
+              <div>
+                <label className="block text-xs font-semibold text-[#475569] mb-1.5">차량명 <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  placeholder="예: 아빠 차"
+                  value={vehicleName}
+                  onChange={(e) => setVehicleName(e.target.value)}
+                  className="w-full bg-[#F8FAFC] rounded-xl px-4 py-3 text-sm border border-[#E2E8F0] outline-none focus:ring-2 focus:ring-[#14B8A6]"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#475569] mb-1.5">차량번호 <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  placeholder="예: 12가3456"
+                  value={vehiclePlate}
+                  onChange={(e) => setVehiclePlate(e.target.value)}
+                  className="w-full bg-[#F8FAFC] rounded-xl px-4 py-3 text-sm border border-[#E2E8F0] outline-none focus:ring-2 focus:ring-[#14B8A6]"
+                  required
+                />
+              </div>
               <input
                 type="number"
                 placeholder="현재 주행거리 (km)"
@@ -192,7 +198,7 @@ export function Vehicle({ onVehicleClick }: VehicleProps) {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full bg-[#1A1A1A] text-white py-4 rounded-xl font-semibold hover:bg-[#14B8A6] transition-colors disabled:opacity-50"
+                className="w-full bg-gradient-to-r from-[#14B8A6] to-[#0D9488] text-white py-4 rounded-xl font-semibold shadow-md disabled:opacity-50"
               >
                 {submitting ? '추가 중...' : '차량 추가'}
               </button>

@@ -386,6 +386,7 @@ def _item_to_response(item: Item, include_photo: bool = True) -> dict:
         "handler_name": item.handler_name,
         "is_family_shared": item.is_family_shared,
         "family_id": item.family_id,
+        "user_id": item.user_id,
         "created_by_name": item.owner.name if item.owner else None,
         "is_active": item.is_active,
         "last_action": _last_action(item),

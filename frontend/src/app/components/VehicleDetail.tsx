@@ -71,6 +71,11 @@ export function VehicleDetail({ vehicle, onBack }: VehicleDetailProps) {
         <div className="px-4">
         <h2 className="text-base font-semibold text-[#1A1A1A] mb-3">점검 항목</h2>
         <div className="space-y-2">
+          {checks.length === 0 && (
+            <div className="py-10 text-center text-[#94A3B8]">
+              <p className="text-sm">점검 항목을 불러오는 중이에요</p>
+            </div>
+          )}
           {checks.map((check) => {
             const status = getCheckStatus(check)
             const cfg = statusConfig[status]

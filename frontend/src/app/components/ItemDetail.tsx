@@ -22,6 +22,7 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
   const undoTimerRef = useRef<number | undefined>(undefined)
   const [loading, setLoading] = useState(false)
   const [savingPhoto, setSavingPhoto] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   // 가족 공유 상태 (항목별로 '가족 공유' ↔ '나만 보기' 전환 가능)
   const [shared, setShared] = useState(item.is_family_shared)
   const [familyId, setFamilyId] = useState<number | null>(item.family_id)
@@ -122,7 +123,6 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
   }
 
   const handleDelete = async () => {
-    if (!confirm('이 항목을 삭제하시겠습니까?')) return
     setLoading(true)
     try {
       await deleteItem(item.id)
@@ -163,8 +163,8 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
           <button onClick={onEdit} className="p-2 hover:bg-[#F8FAFC] rounded-lg">
             <Edit2 size={20} className="text-[#475569]" />
           </button>
-          <button onClick={handleDelete} className="p-2 hover:bg-rose-50 rounded-lg">
-            <Trash2 size={20} className="text-rose-400" />
+          <button onClick={() => setShowDeleteConfirm(true)} className="p-2 hover:bg-red-50 rounded-lg">
+            <Trash2 size={20} className="text-red-400" />
           </button>
         </div>
       </div>
@@ -325,6 +325,30 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
           </div>
         )
       })()}
+
+      {showDeleteConfirm && (
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-6">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-lg font-bold text-[#1A1A1A] mb-2">항목 삭제</h3>
+            <p className="text-sm text-[#64748B] mb-6">이 항목을 삭제하시겠습니까? 삭제한 항목은 복구할 수 없습니다.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-3 border border-[#E2E8F0] rounded-xl text-sm font-semibold text-[#475569]"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => { setShowDeleteConfirm(false); handleDelete() }}
+                disabled={loading}
+                className="flex-1 py-3 bg-red-500 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {actionError && (
         <div className="absolute inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-6" onClick={() => setActionError('')}>
