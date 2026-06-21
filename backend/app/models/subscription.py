@@ -10,8 +10,8 @@ class Subscription(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
     plan = Column(String, nullable=False, default="free")  # free | starter | pro | premium
     status = Column(String, nullable=False, default="active")  # active | cancelled | expired | past_due
-    stripe_customer_id = Column(String, nullable=True, index=True)
-    stripe_subscription_id = Column(String, nullable=True, index=True)
+    billing_key = Column(String, nullable=True)           # 포트원 빌링키
+    portone_payment_id = Column(String, nullable=True)    # 최근 결제 ID
     current_period_start = Column(DateTime(timezone=True), nullable=True)
     current_period_end = Column(DateTime(timezone=True), nullable=True)
     cancel_at_period_end = Column(Boolean, default=False)

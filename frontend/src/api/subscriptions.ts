@@ -5,7 +5,7 @@ export interface SubscriptionInfo {
   status: string
   current_period_end?: string
   cancel_at_period_end?: boolean
-  stripe_subscription_id?: string
+  has_billing_key?: boolean
 }
 
 export interface Plan {
@@ -24,18 +24,11 @@ export async function getPlans(): Promise<Record<string, Plan>> {
   return data
 }
 
-export async function createCheckout(plan: string): Promise<{ checkout_url: string }> {
-  const { data } = await api.post('/subscriptions/checkout', {
-    plan,
-    success_url: `${window.location.origin}/?payment=success`,
-    cancel_url: `${window.location.origin}/?payment=cancel`,
-  })
-  return data
+export async function subscribePlan(billingKey: string, plan: string): Promise<void> {
+  await api.post('/subscriptions/subscribe', { billing_key: billingKey, plan })
 }
 
-export async function createPortal(): Promise<{ portal_url: string }> {
-  const { data } = await api.post('/subscriptions/portal', {
-    return_url: `${window.location.origin}/`,
-  })
+export async function cancelSubscription(): Promise<{ success: boolean; message: string }> {
+  const { data } = await api.post('/subscriptions/cancel')
   return data
 }

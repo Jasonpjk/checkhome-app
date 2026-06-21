@@ -8,28 +8,30 @@ class SubscriptionResponse(BaseModel):
     status: str
     current_period_end: Optional[datetime] = None
     cancel_at_period_end: bool = False
-    stripe_subscription_id: Optional[str] = None
+    has_billing_key: bool = False
 
     class Config:
         from_attributes = True
 
+    @classmethod
+    def from_orm_model(cls, sub):
+        return cls(
+            plan=sub.plan,
+            status=sub.status,
+            current_period_end=sub.current_period_end,
+            cancel_at_period_end=sub.cancel_at_period_end,
+            has_billing_key=bool(sub.billing_key),
+        )
 
-class CreateCheckoutRequest(BaseModel):
+
+class SubscribeRequest(BaseModel):
+    billing_key: str
     plan: str  # starter | pro | premium
-    success_url: str
-    cancel_url: str
 
 
-class CheckoutResponse(BaseModel):
-    checkout_url: str
-
-
-class PortalRequest(BaseModel):
-    return_url: str
-
-
-class PortalResponse(BaseModel):
-    portal_url: str
+class CancelResponse(BaseModel):
+    success: bool
+    message: str
 
 
 PLANS = {
@@ -38,3 +40,5 @@ PLANS = {
     "pro": {"name": "프로", "price": 9900, "description": "가족 공유·AI 인식 강화"},
     "premium": {"name": "프리미엄", "price": 19900, "description": "알림·무제한 가족·프리미엄 지원"},
 }
+
+PLAN_PRICES = {k: v["price"] for k, v in PLANS.items()}

@@ -5,7 +5,7 @@ import { AdBanner } from './AdBanner'
 import { getMyFamily, createFamily, joinFamily, shareExistingItems, Family } from '../../api/families'
 import { fetchLocations, createLocation, deleteLocation, StorageLocation } from '../../api/locations'
 import { fetchItems } from '../../api/items'
-import { getMySubscription, getPlans, createCheckout, createPortal, SubscriptionInfo, Plan } from '../../api/subscriptions'
+import { getMySubscription, getPlans, subscribePlan, cancelSubscription, SubscriptionInfo, Plan } from '../../api/subscriptions'
 
 interface SettingsProps {
   onLogout: () => void
@@ -106,21 +106,49 @@ export function Settings({ onLogout }: SettingsProps) {
     if (planKey === 'free') return
     setCheckoutLoading(planKey)
     try {
-      const { checkout_url } = await createCheckout(planKey)
-      window.location.href = checkout_url
+      const storeId = import.meta.env.VITE_PORTONE_STORE_ID
+      const channelKey = import.meta.env.VITE_PORTONE_CHANNEL_KEY
+      if (!storeId || !channelKey) {
+        showToast('결제 기능이 아직 준비 중입니다')
+        return
+      }
+      const PortOne = await import('@portone/browser-sdk/v2')
+      const response = await PortOne.requestIssueBillingKey({
+        storeId,
+        channelKey,
+        billingKeyMethod: 'CARD',
+        issueId: `issue-${Date.now()}`,
+        issueName: '체크홈 정기결제 카드 등록',
+        customer: {
+          customerId: String(user?.user_id),
+          fullName: user?.name || '',
+          email: user?.email || '',
+        },
+      })
+      if (!response || (response as any).code !== undefined) {
+        showToast('카드 등록이 취소됐어요')
+        return
+      }
+      await subscribePlan((response as any).billingKey, planKey)
+      const [sub] = await Promise.all([getMySubscription()])
+      setSubscription(sub)
+      showToast('구독이 시작됐어요!')
     } catch {
-      showToast('결제 페이지를 열 수 없어요. 잠시 후 다시 시도해주세요.')
+      showToast('결제 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.')
     } finally {
       setCheckoutLoading(null)
     }
   }
 
   const handleManageSubscription = async () => {
+    if (!confirm('구독을 해지하시겠습니까? 현재 결제 기간이 끝날 때까지 이용 가능합니다.')) return
     try {
-      const { portal_url } = await createPortal()
-      window.location.href = portal_url
+      const result = await cancelSubscription()
+      showToast(result.message)
+      const sub = await getMySubscription()
+      setSubscription(sub)
     } catch {
-      showToast('구독 관리 페이지를 열 수 없어요')
+      showToast('구독 해지 중 오류가 발생했어요')
     }
   }
 
@@ -478,13 +506,16 @@ export function Settings({ onLogout }: SettingsProps) {
                         {new Date(subscription.current_period_end).toLocaleDateString('ko-KR')}
                       </p>
                     )}
-                    {subscription.plan !== 'free' && (
+                    {subscription.plan !== 'free' && !subscription.cancel_at_period_end && (
                       <button
                         onClick={handleManageSubscription}
                         className="mt-3 text-xs font-semibold underline opacity-80"
                       >
-                        구독 변경 · 해지
+                        구독 해지
                       </button>
+                    )}
+                    {subscription.cancel_at_period_end && (
+                      <p className="mt-2 text-xs opacity-80">해지 예정 · 기간 만료 후 무료 전환</p>
                     )}
                   </div>
                 )}
@@ -537,7 +568,7 @@ export function Settings({ onLogout }: SettingsProps) {
                 })}
 
                 <p className="text-xs text-[#94A3B8] text-center pb-2">
-                  결제는 Stripe를 통해 안전하게 처리됩니다. 언제든지 해지 가능.
+                  결제는 토스페이먼츠를 통해 안전하게 처리됩니다. 언제든지 해지 가능.
                 </p>
               </div>
             )}

@@ -21,13 +21,11 @@ class Settings(BaseSettings):
     # 기본은 저렴한 Haiku로 처리하고, 자신 없는(흐릿/작은 글씨) 사진만 상위 모델로 자동 재시도
     ANTHROPIC_MODEL: str = "claude-haiku-4-5"
     ANTHROPIC_ESCALATION_MODEL: str = "claude-opus-4-8"
-    # Stripe 결제
-    STRIPE_SECRET_KEY: Optional[str] = None
-    STRIPE_PUBLISHABLE_KEY: Optional[str] = None
-    STRIPE_WEBHOOK_SECRET: Optional[str] = None
-    STRIPE_PRICE_STARTER: Optional[str] = None  # Stripe price ID for starter plan
-    STRIPE_PRICE_PRO: Optional[str] = None       # Stripe price ID for pro plan
-    STRIPE_PRICE_PREMIUM: Optional[str] = None   # Stripe price ID for premium plan
+    # 포트원 V2 결제
+    PORTONE_STORE_ID: Optional[str] = None       # 스토어 아이디 (store-xxxx)
+    PORTONE_API_SECRET: Optional[str] = None     # V2 API Secret
+    PORTONE_WEBHOOK_SECRET: Optional[str] = None # 웹훅 시크릿
+    PORTONE_CHANNEL_KEY: Optional[str] = None    # 채널키 (channel-key-xxxx)
     # 관리자 자동 부여 이메일 (쉼표 구분, 예: admin@example.com,ceo@example.com)
     ADMIN_EMAIL: Optional[str] = None
 

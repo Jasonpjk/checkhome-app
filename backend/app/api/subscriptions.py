@@ -1,22 +1,27 @@
+import hmac
+import hashlib
+import base64
+import uuid
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
+import httpx
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.config import settings
 from app.models.user import User
 from app.models.subscription import Subscription
 from app.schemas.subscription import (
-    SubscriptionResponse, CreateCheckoutRequest, CheckoutResponse,
-    PortalRequest, PortalResponse, PLANS
+    SubscriptionResponse, SubscribeRequest, CancelResponse, PLANS, PLAN_PRICES
 )
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 
-PLAN_TO_PRICE = {
-    "starter": settings.STRIPE_PRICE_STARTER,
-    "pro": settings.STRIPE_PRICE_PRO,
-    "premium": settings.STRIPE_PRICE_PREMIUM,
-}
+PORTONE_API_BASE = "https://api.portone.io"
+
+
+def _portone_headers():
+    return {"Authorization": f"PortOne {settings.PORTONE_API_SECRET}"}
 
 
 def _get_or_create_subscription(user: User, db: Session) -> Subscription:
@@ -29,10 +34,10 @@ def _get_or_create_subscription(user: User, db: Session) -> Subscription:
     return sub
 
 
-@router.get("/me", response_model=SubscriptionResponse)
+@router.get("/me")
 def get_my_subscription(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     sub = _get_or_create_subscription(current_user, db)
-    return sub
+    return SubscriptionResponse.from_orm_model(sub)
 
 
 @router.get("/plans")
@@ -40,117 +45,161 @@ def get_plans():
     return PLANS
 
 
-@router.post("/checkout", response_model=CheckoutResponse)
-def create_checkout(
-    req: CreateCheckoutRequest,
+@router.post("/subscribe")
+async def subscribe(
+    req: SubscribeRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    if not settings.STRIPE_SECRET_KEY:
+    if not settings.PORTONE_API_SECRET:
         raise HTTPException(status_code=503, detail="결제 기능이 아직 준비 중입니다")
 
-    try:
-        import stripe
-        stripe.api_key = settings.STRIPE_SECRET_KEY
-    except ImportError:
-        raise HTTPException(status_code=503, detail="결제 모듈이 설치되지 않았습니다")
-
-    price_id = PLAN_TO_PRICE.get(req.plan)
-    if not price_id:
+    price = PLAN_PRICES.get(req.plan)
+    if not price:
         raise HTTPException(status_code=400, detail="유효하지 않은 플랜입니다")
 
     sub = _get_or_create_subscription(current_user, db)
+    payment_id = f"checkhome-{uuid.uuid4().hex}"
 
-    if not sub.stripe_customer_id:
-        customer = stripe.Customer.create(
-            email=current_user.email,
-            name=current_user.name,
-            metadata={"user_id": str(current_user.id)},
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{PORTONE_API_BASE}/payments/{payment_id}/billing-key",
+            headers=_portone_headers(),
+            json={
+                "billingKey": req.billing_key,
+                "orderName": f"체크홈 {PLANS[req.plan]['name']} 플랜",
+                "customer": {
+                    "customerId": str(current_user.id),
+                    "fullName": current_user.name,
+                    "email": current_user.email,
+                },
+                "amount": {"total": price},
+                "currency": "KRW",
+            },
+            timeout=30,
         )
-        sub.stripe_customer_id = customer.id
-        db.commit()
 
-    session = stripe.checkout.Session.create(
-        customer=sub.stripe_customer_id,
-        payment_method_types=["card"],
-        mode="subscription",
-        line_items=[{"price": price_id, "quantity": 1}],
-        success_url=req.success_url,
-        cancel_url=req.cancel_url,
-        metadata={"user_id": str(current_user.id), "plan": req.plan},
-    )
-    return CheckoutResponse(checkout_url=session.url)
+    data = resp.json()
+    if resp.status_code != 200 or data.get("status") not in ("PAID",):
+        raise HTTPException(status_code=400, detail=data.get("message", "결제에 실패했습니다"))
+
+    now = datetime.now(timezone.utc)
+    next_period = now + timedelta(days=30)
+
+    sub.billing_key = req.billing_key
+    sub.portone_payment_id = payment_id
+    sub.plan = req.plan
+    sub.status = "active"
+    sub.current_period_start = now
+    sub.current_period_end = next_period
+    sub.cancel_at_period_end = False
+    db.commit()
+
+    # 다음 달 자동 결제 예약
+    next_payment_id = f"checkhome-{uuid.uuid4().hex}"
+    async with httpx.AsyncClient() as client:
+        await client.post(
+            f"{PORTONE_API_BASE}/schedules",
+            headers=_portone_headers(),
+            json={
+                "payment": {
+                    "billingKey": req.billing_key,
+                    "orderName": f"체크홈 {PLANS[req.plan]['name']} 플랜",
+                    "customer": {
+                        "customerId": str(current_user.id),
+                        "fullName": current_user.name,
+                        "email": current_user.email,
+                    },
+                    "amount": {"total": price},
+                    "currency": "KRW",
+                },
+                "timeToPay": next_period.strftime("%Y-%m-%dT%H:%M:%S+00:00"),
+                "paymentId": next_payment_id,
+            },
+            timeout=30,
+        )
+
+    return {"success": True}
 
 
-@router.post("/portal", response_model=PortalResponse)
-def create_portal(
-    req: PortalRequest,
+@router.post("/cancel", response_model=CancelResponse)
+def cancel_subscription(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    if not settings.STRIPE_SECRET_KEY:
-        raise HTTPException(status_code=503, detail="결제 기능이 아직 준비 중입니다")
-
-    try:
-        import stripe
-        stripe.api_key = settings.STRIPE_SECRET_KEY
-    except ImportError:
-        raise HTTPException(status_code=503, detail="결제 모듈이 설치되지 않았습니다")
-
     sub = db.query(Subscription).filter(Subscription.user_id == current_user.id).first()
-    if not sub or not sub.stripe_customer_id:
-        raise HTTPException(status_code=400, detail="구독 정보가 없습니다")
+    if not sub or sub.plan == "free":
+        raise HTTPException(status_code=400, detail="취소할 구독이 없습니다")
 
-    portal = stripe.billing_portal.Session.create(
-        customer=sub.stripe_customer_id,
-        return_url=req.return_url,
-    )
-    return PortalResponse(portal_url=portal.url)
+    sub.cancel_at_period_end = True
+    db.commit()
+
+    period_end = sub.current_period_end
+    msg = f"{period_end.strftime('%Y년 %m월 %d일')}까지 이용 가능합니다" if period_end else "기간 말에 해지됩니다"
+    return CancelResponse(success=True, message=msg)
 
 
 @router.post("/webhook")
-async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
-    if not settings.STRIPE_SECRET_KEY or not settings.STRIPE_WEBHOOK_SECRET:
-        raise HTTPException(status_code=503, detail="웹훅이 설정되지 않았습니다")
+async def portone_webhook(request: Request, db: Session = Depends(get_db)):
+    raw_body = await request.body()
+    body_str = raw_body.decode("utf-8")
 
+    if settings.PORTONE_WEBHOOK_SECRET:
+        webhook_id = request.headers.get("webhook-id", "")
+        webhook_ts = request.headers.get("webhook-timestamp", "")
+        webhook_sig = request.headers.get("webhook-signature", "")
+
+        sign_input = f"{webhook_id}.{webhook_ts}.{body_str}".encode()
+        secret_bytes = base64.b64decode(settings.PORTONE_WEBHOOK_SECRET)
+        expected = base64.b64encode(hmac.new(secret_bytes, sign_input, hashlib.sha256).digest()).decode()
+        valid = any(
+            hmac.compare_digest(expected, sig.split(",", 1)[-1])
+            for sig in webhook_sig.split(" ")
+        )
+        if not valid:
+            raise HTTPException(status_code=400, detail="웹훅 서명 검증 실패")
+
+    import json
     try:
-        import stripe
-        stripe.api_key = settings.STRIPE_SECRET_KEY
-    except ImportError:
-        raise HTTPException(status_code=503, detail="결제 모듈이 설치되지 않았습니다")
-
-    payload = await request.body()
-    sig_header = request.headers.get("stripe-signature", "")
-
-    try:
-        event = stripe.Webhook.construct_event(payload, sig_header, settings.STRIPE_WEBHOOK_SECRET)
+        event = json.loads(body_str)
     except Exception:
-        raise HTTPException(status_code=400, detail="웹훅 서명 검증 실패")
+        raise HTTPException(status_code=400, detail="잘못된 웹훅 형식")
 
-    data = event["data"]["object"]
+    event_type = event.get("type", "")
+    data = event.get("data", {})
 
-    if event["type"] == "checkout.session.completed":
-        user_id = int(data.get("metadata", {}).get("user_id", 0))
-        plan = data.get("metadata", {}).get("plan", "free")
-        stripe_sub_id = data.get("subscription")
-        if user_id:
-            sub = db.query(Subscription).filter(Subscription.user_id == user_id).first()
-            if sub:
-                sub.plan = plan
-                sub.status = "active"
-                sub.stripe_subscription_id = stripe_sub_id
+    if event_type == "Transaction.Paid":
+        payment_id = data.get("paymentId", "")
+        customer_id = data.get("customer", {}).get("customerId", "")
+        if customer_id:
+            sub = db.query(Subscription).filter(
+                Subscription.user_id == int(customer_id)
+            ).first()
+            if sub and sub.status == "active":
+                now = datetime.now(timezone.utc)
+                sub.portone_payment_id = payment_id
+                sub.current_period_start = now
+                sub.current_period_end = now + timedelta(days=30)
                 db.commit()
 
-    elif event["type"] in ("customer.subscription.updated", "customer.subscription.deleted"):
-        stripe_sub_id = data.get("id")
-        sub = db.query(Subscription).filter(Subscription.stripe_subscription_id == stripe_sub_id).first()
-        if sub:
-            stripe_status = data.get("status")
-            sub.status = "active" if stripe_status in ("active", "trialing") else "expired"
-            sub.cancel_at_period_end = data.get("cancel_at_period_end", False)
-            if event["type"] == "customer.subscription.deleted":
+    elif event_type == "Transaction.Failed":
+        customer_id = data.get("customer", {}).get("customerId", "")
+        if customer_id:
+            sub = db.query(Subscription).filter(
+                Subscription.user_id == int(customer_id)
+            ).first()
+            if sub:
+                sub.status = "past_due"
+                db.commit()
+
+    elif event_type == "BillingKey.Deleted":
+        billing_key = data.get("billingKey", "")
+        if billing_key:
+            sub = db.query(Subscription).filter(Subscription.billing_key == billing_key).first()
+            if sub:
+                sub.billing_key = None
                 sub.plan = "free"
                 sub.status = "expired"
-            db.commit()
+                db.commit()
 
     return {"ok": True}
