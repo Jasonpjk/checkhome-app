@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from './app/App'
 import { AdminApp } from './admin/AdminApp'
 import './styles/globals.css'
+import './i18n'
 
 const isAdmin = window.location.pathname.startsWith('/admin')
 

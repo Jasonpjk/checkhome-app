@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { User, Users, MapPin, Bell, CreditCard, Database, MessageCircle, Megaphone, FileText, ChevronRight, X, Plus, LogOut, Layers, Copy, Check, Loader2, Link, Trash2, Sparkles, Crown, Zap } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { User, Users, MapPin, Bell, CreditCard, Database, MessageCircle, Megaphone, FileText, ChevronRight, X, Plus, LogOut, Layers, Copy, Check, Loader2, Link, Trash2, Sparkles, Crown, Zap, Globe } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { AdBanner } from './AdBanner'
 import { getMyFamily, createFamily, joinFamily, shareExistingItems, Family } from '../../api/families'
@@ -26,8 +27,17 @@ const ALL_CATEGORIES = [
   { id: 'garden', name: '정원용품', icon: '🌿' },
 ]
 
+const LANGUAGES = [
+  { code: 'ko', label: '한국어', flag: '🇰🇷' },
+  { code: 'en', label: 'English', flag: '🇺🇸' },
+  { code: 'ja', label: '日本語', flag: '🇯🇵' },
+  { code: 'zh', label: '中文', flag: '🇨🇳' },
+]
+
 export function Settings({ onLogout }: SettingsProps) {
+  const { t, i18n } = useTranslation()
   const { user, clearAuth } = useAuthStore()
+  const [showLanguageModal, setShowLanguageModal] = useState(false)
   const [showFamilyModal, setShowFamilyModal] = useState(false)
   const [family, setFamily] = useState<Family | null>(null)
   const [familyLoading, setFamilyLoading] = useState(false)
@@ -298,6 +308,30 @@ export function Settings({ onLogout }: SettingsProps) {
 
       <div className="px-6 space-y-6 pb-6">
         <section>
+          <h2 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-2">{t('settings.language')}</h2>
+          <div className="bg-white border border-[#CBD5E1] rounded-xl overflow-hidden shadow-sm">
+            <button
+              onClick={() => setShowLanguageModal(true)}
+              className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-[#F8FAFC]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <Globe size={18} className="text-blue-600" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-medium">{t('settings.language_select')}</p>
+                  <p className="text-xs text-[#94A3B8]">
+                    {LANGUAGES.find((l) => l.code === i18n.resolvedLanguage)?.flag}{' '}
+                    {LANGUAGES.find((l) => l.code === i18n.resolvedLanguage)?.label ?? 'Korean'}
+                  </p>
+                </div>
+              </div>
+              <ChevronRight size={18} className="text-gray-400" />
+            </button>
+          </div>
+        </section>
+
+        <section>
           <h2 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-2">계정</h2>
           <div className="bg-white border border-[#CBD5E1] rounded-xl overflow-hidden shadow-sm">
             <button
@@ -476,6 +510,35 @@ export function Settings({ onLogout }: SettingsProps) {
           <p>체크홈 v1.0.0</p>
         </div>
       </div>
+
+      {showLanguageModal && (
+        <div className="absolute inset-0 bg-black/50 flex items-end z-50">
+          <div className="bg-white w-full rounded-t-2xl">
+            <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-4 py-3 flex items-center justify-between">
+              <h2 className="text-base font-bold">{t('settings.language_select')}</h2>
+              <button onClick={() => setShowLanguageModal(false)}><X size={20} /></button>
+            </div>
+            <div className="px-4 py-2 pb-8">
+              {LANGUAGES.map((lang) => {
+                const isActive = i18n.resolvedLanguage === lang.code
+                return (
+                  <button
+                    key={lang.code}
+                    onClick={() => { i18n.changeLanguage(lang.code); setShowLanguageModal(false) }}
+                    className={`w-full flex items-center justify-between px-4 py-4 rounded-xl mb-1 ${isActive ? 'bg-teal-50 border border-[#14B8A6]' : 'hover:bg-gray-50'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{lang.flag}</span>
+                      <span className={`text-sm font-medium ${isActive ? 'text-[#14B8A6]' : 'text-[#1A1A1A]'}`}>{lang.label}</span>
+                    </div>
+                    {isActive && <Check size={18} className="text-[#14B8A6]" />}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showSubscriptionModal && (
         <div className="absolute inset-0 bg-black/50 flex items-end z-50">

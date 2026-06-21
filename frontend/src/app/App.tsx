@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Home as HomeIcon, Archive, PlusCircle, Car, Settings as SettingsIcon } from 'lucide-react'
 import { Onboarding } from './components/Onboarding'
 import { Login } from './components/Login'
@@ -18,6 +19,7 @@ import { Vehicle as VehicleType } from '../api/vehicles'
 type Screen = 'onboarding' | 'login' | 'main' | 'social-callback'
 type Tab = 'home' | 'storage' | 'register' | 'vehicle' | 'settings'
 type SmartFilter = 'action-needed' | 'this-week' | null
+type RegisterStep = 'category' | 'form'
 
 const ONBOARDING_KEY = 'checkhome_onboarding_done'
 
@@ -27,6 +29,7 @@ function hasOAuthParams() {
 }
 
 export default function App() {
+  const { t } = useTranslation()
   const { user, token, setAuth } = useAuthStore()
   const [onboardingDone] = useState(() => localStorage.getItem(ONBOARDING_KEY) === '1')
 
@@ -39,6 +42,7 @@ export default function App() {
 
   const [currentScreen, setCurrentScreen] = useState<Screen>(getInitialScreen)
   const [activeTab, setActiveTab] = useState<Tab>('home')
+  const [registerStep, setRegisterStep] = useState<RegisterStep>('category')
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleType | null>(null)
@@ -51,8 +55,11 @@ export default function App() {
   // 열린 서브화면을 '순서 있는 배열'로 표현하고, 우리가 실제 push한 history 엔트리 수(pushedRef)를
   // 원하는 깊이에 idempotent하게 맞춘다. 깊이가 같아도 '무엇이 열렸는지'가 바뀌면 정확히 1개가 push/pop된다.
   // (이전 '숫자 깊이 + skip 플래그' 방식의 desync 버그를 근본 제거)
+  // 뒤로가기 스택: 탭 이동 + 폼 step + 세부화면 오버레이 전부 포함
   const overlay = [
-    (!!selectedCategory || !!smartFilter) && activeTab === 'storage' ? 'filter' : null,
+    activeTab !== 'home' ? 'tab' : null,                                                          // 비홈 탭
+    activeTab === 'register' && registerStep === 'form' ? 'register-form' : null,                 // 등록 폼 단계
+    (!!selectedCategory || !!smartFilter) && activeTab === 'storage' ? 'filter' : null,           // 보관함 필터
     selectedVehicle ? 'vehicle' : null,
     selectedItem ? 'item' : null,
     editingItem ? 'edit' : null,
@@ -62,10 +69,12 @@ export default function App() {
   const programmaticRef = useRef(0)
   const closeTopRef = useRef<() => void>(() => {})
   closeTopRef.current = () => {
-    if (editingItem) setEditingItem(null)
-    else if (selectedItem) setSelectedItem(null)
-    else if (selectedVehicle) setSelectedVehicle(null)
+    if (editingItem) { setEditingItem(null) }
+    else if (selectedItem) { setSelectedItem(null) }
+    else if (selectedVehicle) { setSelectedVehicle(null) }
     else if (selectedCategory || smartFilter) { setSelectedCategory(null); setSmartFilter(null); setActiveTab('home') }
+    else if (activeTab === 'register' && registerStep === 'form') { setRegisterStep('category') }
+    else if (activeTab !== 'home') { setActiveTab('home'); setRegisterStep('category') }
   }
 
   useEffect(() => {
@@ -191,11 +200,11 @@ export default function App() {
   }
 
   const tabs = [
-    { id: 'home' as Tab, label: '홈', icon: HomeIcon },
-    { id: 'storage' as Tab, label: '보관함', icon: Archive },
-    { id: 'register' as Tab, label: '등록', icon: PlusCircle },
-    { id: 'vehicle' as Tab, label: '차량', icon: Car },
-    { id: 'settings' as Tab, label: '설정', icon: SettingsIcon },
+    { id: 'home' as Tab, label: t('nav.home'), icon: HomeIcon },
+    { id: 'storage' as Tab, label: t('nav.storage'), icon: Archive },
+    { id: 'register' as Tab, label: t('nav.register'), icon: PlusCircle },
+    { id: 'vehicle' as Tab, label: t('nav.vehicle'), icon: Car },
+    { id: 'settings' as Tab, label: t('nav.settings'), icon: SettingsIcon },
   ]
 
   return (
@@ -233,12 +242,13 @@ export default function App() {
           )}
           {activeTab === 'register' && (
             <Register
+              step={registerStep}
+              onStepChange={setRegisterStep}
               onRegistered={() => {
-                // 등록 직후: 직전 카테고리/스마트필터를 비워 방금 등록한 항목이 가려지지 않게 하고,
-                // 보관함을 강제로 다시 불러온다(stale 목록 방지).
                 setSelectedCategory(null)
                 setSmartFilter(null)
                 setStorageRefreshKey((k) => k + 1)
+                setRegisterStep('category')
                 setActiveTab('storage')
               }}
             />

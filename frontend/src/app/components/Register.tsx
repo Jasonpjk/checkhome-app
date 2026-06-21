@@ -26,6 +26,8 @@ const categories = [
 
 interface RegisterProps {
   onRegistered?: () => void
+  step?: 'category' | 'form'
+  onStepChange?: (step: 'category' | 'form') => void
 }
 
 // AI가 준 날짜를 YYYY-MM-DD로 정규화 (2026-3-5, 2026.03.05, 2026/3/5 등 허용)
@@ -36,9 +38,11 @@ function normalizeDate(raw: string): string | null {
   return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`
 }
 
-export function Register({ onRegistered }: RegisterProps) {
+export function Register({ onRegistered, step: externalStep, onStepChange }: RegisterProps) {
   const { user } = useAuthStore()
-  const [step, setStep] = useState<'category' | 'form'>('category')
+  const [internalStep, setInternalStep] = useState<'category' | 'form'>('category')
+  const step = externalStep ?? internalStep
+  const setStep = (s: 'category' | 'form') => { setInternalStep(s); onStepChange?.(s) }
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [productName, setProductName] = useState('')
   const [expiryDate, setExpiryDate] = useState('')
