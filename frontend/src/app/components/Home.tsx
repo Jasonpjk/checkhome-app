@@ -35,7 +35,10 @@ export function Home({ onCategoryClick, onItemClick, onActionNeededClick, onThis
             <h1 className="text-3xl font-bold text-white mb-1">체크홈</h1>
             <p className="text-teal-50 text-sm">오늘 확인할 항목</p>
           </div>
-          <button className="p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
+          <button
+            onClick={() => alert('알림 기능은 곧 제공될 예정이에요')}
+            className="p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+          >
             <Bell size={20} className="text-white" />
           </button>
         </div>

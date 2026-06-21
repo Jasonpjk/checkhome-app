@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/authStore'
 import { AdBanner } from './AdBanner'
 import { getMyFamily, createFamily, joinFamily, shareExistingItems, Family } from '../../api/families'
 import { fetchLocations, createLocation, deleteLocation, StorageLocation } from '../../api/locations'
+import { fetchItems } from '../../api/items'
 
 interface SettingsProps {
   onLogout: () => void
@@ -39,6 +40,42 @@ export function Settings({ onLogout }: SettingsProps) {
   const [locations, setLocations] = useState<StorageLocation[]>([])
   const [newLoc, setNewLoc] = useState('')
   const [locLoading, setLocLoading] = useState(false)
+  const [showTermsModal, setShowTermsModal] = useState(false)
+  const [toast, setToast] = useState('')
+  const [exporting, setExporting] = useState(false)
+
+  const showToast = (msg: string) => {
+    setToast(msg)
+    setTimeout(() => setToast(''), 2500)
+  }
+
+  const SUPPORT_EMAIL = 'business10082@gmail.com'
+
+  const handleContact = () => {
+    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('체크홈 문의')}`
+  }
+
+  // 내 데이터(보관 중 항목)를 JSON 파일로 내보내기
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const items = await fetchItems()
+      const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `체크홈_백업_${new Date().toISOString().slice(0, 10)}.json`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      showToast('데이터를 내보냈어요')
+    } catch {
+      showToast('내보내기에 실패했어요')
+    } finally {
+      setExporting(false)
+    }
+  }
   const [showNotificationModal, setShowNotificationModal] = useState(false)
   const [showCategoriesModal, setShowCategoriesModal] = useState(false)
   const [enabledCategories, setEnabledCategories] = useState<Set<string>>(
@@ -193,12 +230,18 @@ export function Settings({ onLogout }: SettingsProps) {
         <section>
           <h2 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-2">계정</h2>
           <div className="bg-white border border-[#CBD5E1] rounded-xl overflow-hidden shadow-sm">
-            <button className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-[#F8FAFC]">
+            <button
+              onClick={() => showToast('이름·비밀번호 변경 기능은 곧 제공됩니다')}
+              className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-[#F8FAFC]"
+            >
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-gray-100 rounded-lg">
                   <User size={18} className="text-[#475569]" />
                 </div>
-                <span className="text-sm font-medium">내 정보</span>
+                <div className="text-left">
+                  <p className="text-sm font-medium">내 정보</p>
+                  <p className="text-xs text-[#94A3B8]">{user?.name} · {user?.email}</p>
+                </div>
               </div>
               <ChevronRight size={18} className="text-gray-400" />
             </button>
@@ -276,41 +319,70 @@ export function Settings({ onLogout }: SettingsProps) {
         <section>
           <h2 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-2">구독 및 데이터</h2>
           <div className="bg-white border border-[#CBD5E1] rounded-xl overflow-hidden divide-y divide-gray-200 shadow-sm">
-            {[
-              { icon: CreditCard, label: '구독 관리' },
-              { icon: Database, label: '데이터 백업' },
-            ].map(({ icon: Icon, label }) => (
-              <button key={label} className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-[#F8FAFC]">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gray-100 rounded-lg">
-                    <Icon size={18} className="text-[#475569]" />
-                  </div>
-                  <span className="text-sm font-medium">{label}</span>
+            <button
+              onClick={() => showToast('구독·결제 기능은 준비 중이에요')}
+              className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-[#F8FAFC]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <CreditCard size={18} className="text-[#475569]" />
                 </div>
-                <ChevronRight size={18} className="text-gray-400" />
-              </button>
-            ))}
+                <span className="text-sm font-medium">구독 관리</span>
+              </div>
+              <span className="text-xs text-[#94A3B8]">준비 중</span>
+            </button>
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-[#F8FAFC] disabled:opacity-50"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <Database size={18} className="text-[#475569]" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-medium">데이터 내보내기</p>
+                  <p className="text-xs text-[#94A3B8]">내 항목을 파일로 저장</p>
+                </div>
+              </div>
+              {exporting ? <Loader2 size={18} className="animate-spin text-gray-400" /> : <ChevronRight size={18} className="text-gray-400" />}
+            </button>
           </div>
         </section>
 
         <section>
           <h2 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-2">고객 지원</h2>
           <div className="bg-white border border-[#CBD5E1] rounded-xl overflow-hidden divide-y divide-gray-200 shadow-sm">
-            {[
-              { icon: MessageCircle, label: '문의하기' },
-              { icon: Megaphone, label: '공지사항' },
-              { icon: FileText, label: '약관 및 개인정보처리방침' },
-            ].map(({ icon: Icon, label }) => (
-              <button key={label} className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-[#F8FAFC]">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gray-100 rounded-lg">
-                    <Icon size={18} className="text-[#475569]" />
-                  </div>
-                  <span className="text-sm font-medium">{label}</span>
+            <button onClick={handleContact} className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-[#F8FAFC]">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <MessageCircle size={18} className="text-[#475569]" />
                 </div>
-                <ChevronRight size={18} className="text-gray-400" />
-              </button>
-            ))}
+                <div className="text-left">
+                  <p className="text-sm font-medium">문의하기</p>
+                  <p className="text-xs text-[#94A3B8]">{SUPPORT_EMAIL}</p>
+                </div>
+              </div>
+              <ChevronRight size={18} className="text-gray-400" />
+            </button>
+            <button onClick={() => showToast('등록된 공지사항이 없어요')} className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-[#F8FAFC]">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <Megaphone size={18} className="text-[#475569]" />
+                </div>
+                <span className="text-sm font-medium">공지사항</span>
+              </div>
+              <ChevronRight size={18} className="text-gray-400" />
+            </button>
+            <button onClick={() => setShowTermsModal(true)} className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-[#F8FAFC]">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <FileText size={18} className="text-[#475569]" />
+                </div>
+                <span className="text-sm font-medium">약관 및 개인정보처리방침</span>
+              </div>
+              <ChevronRight size={18} className="text-gray-400" />
+            </button>
           </div>
         </section>
 
@@ -609,6 +681,36 @@ export function Settings({ onLogout }: SettingsProps) {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {showTermsModal && (
+        <div className="absolute inset-0 bg-black/50 flex items-end z-50">
+          <div className="bg-white w-full rounded-t-2xl max-h-[85vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-4 py-3 flex items-center justify-between">
+              <h2 className="text-base font-bold">약관 및 개인정보처리방침</h2>
+              <button onClick={() => setShowTermsModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="px-5 py-4 text-sm text-[#475569] space-y-4 leading-relaxed">
+              <section>
+                <h3 className="font-bold text-[#1A1A1A] mb-1">서비스 이용약관</h3>
+                <p>체크홈(이하 "서비스")은 가정용 제품의 유통기한·사용기한 관리를 돕는 앱입니다. 이용자는 본인 또는 가족의 제품 정보를 등록·관리할 수 있으며, 등록된 정보의 정확성에 대한 책임은 이용자에게 있습니다. 서비스는 안정적 제공을 위해 노력하나 천재지변·기술적 장애 등으로 일시 중단될 수 있습니다.</p>
+              </section>
+              <section>
+                <h3 className="font-bold text-[#1A1A1A] mb-1">개인정보처리방침</h3>
+                <p>서비스는 회원 식별을 위해 이메일·이름을 수집하며, 제품 등록 시 입력한 정보(제품명·사진·메모 등)를 저장합니다. 수집한 정보는 서비스 제공 목적으로만 사용하고 제3자에게 제공하지 않습니다. 이용자는 언제든 데이터 내보내기 또는 계정 삭제를 요청할 수 있습니다.</p>
+              </section>
+              <p className="text-xs text-[#94A3B8]">문의: {SUPPORT_EMAIL} · 본 약관은 서비스 개선에 따라 변경될 수 있으며 변경 시 앱 내 공지합니다.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-[60] bg-[#1A1A1A] text-white text-sm px-4 py-2.5 rounded-full shadow-lg whitespace-nowrap">
+          {toast}
         </div>
       )}
     </div>

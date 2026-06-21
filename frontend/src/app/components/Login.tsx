@@ -18,6 +18,7 @@ export function Login({ onLogin }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showTerms, setShowTerms] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,6 +46,26 @@ export function Login({ onLogin }: LoginProps) {
 
   return (
     <div className="min-h-screen w-full bg-gray-200 flex items-center justify-center">
+      {showTerms && (
+        <div className="absolute inset-0 bg-black/50 flex items-end justify-center z-50">
+          <div className="bg-white w-full max-w-md rounded-t-2xl max-h-[85vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-[#E2E8F0] px-4 py-3 flex items-center justify-between">
+              <h2 className="text-base font-bold">약관 및 개인정보처리방침</h2>
+              <button onClick={() => setShowTerms(false)} className="text-gray-400 text-xl leading-none">✕</button>
+            </div>
+            <div className="px-5 py-4 text-sm text-[#475569] space-y-4 leading-relaxed">
+              <section>
+                <h3 className="font-bold text-[#1A1A1A] mb-1">서비스 이용약관</h3>
+                <p>체크홈(이하 "서비스")은 가정용 제품의 유통기한·사용기한 관리를 돕는 앱입니다. 이용자는 본인 또는 가족의 제품 정보를 등록·관리할 수 있으며, 등록된 정보의 정확성에 대한 책임은 이용자에게 있습니다.</p>
+              </section>
+              <section>
+                <h3 className="font-bold text-[#1A1A1A] mb-1">개인정보처리방침</h3>
+                <p>서비스는 회원 식별을 위해 이메일·이름을 수집하며, 제품 등록 시 입력한 정보를 저장합니다. 수집한 정보는 서비스 제공 목적으로만 사용하고 제3자에게 제공하지 않습니다. 문의: business10082@gmail.com</p>
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="h-screen w-full max-w-md bg-white shadow-2xl overflow-y-auto">
         <div className="px-6 pt-16 pb-8">
           <div className="mb-10">
@@ -154,7 +175,9 @@ export function Login({ onLogin }: LoginProps) {
                     onChange={(e) => setAgreeTerms(e.target.checked)}
                     className="w-5 h-5 rounded border-gray-300"
                   />
-                  <span className="text-sm text-gray-700">서비스 이용약관에 동의합니다</span>
+                  <span className="text-sm text-gray-700">
+                    <button type="button" onClick={() => setShowTerms(true)} className="underline text-[#14B8A6]">서비스 이용약관</button>에 동의합니다
+                  </span>
                 </label>
                 <label className="flex items-center gap-3">
                   <input
@@ -163,7 +186,9 @@ export function Login({ onLogin }: LoginProps) {
                     onChange={(e) => setAgreePrivacy(e.target.checked)}
                     className="w-5 h-5 rounded border-gray-300"
                   />
-                  <span className="text-sm text-gray-700">개인정보처리방침에 동의합니다</span>
+                  <span className="text-sm text-gray-700">
+                    <button type="button" onClick={() => setShowTerms(true)} className="underline text-[#14B8A6]">개인정보처리방침</button>에 동의합니다
+                  </span>
                 </label>
               </div>
             )}
@@ -182,7 +207,11 @@ export function Login({ onLogin }: LoginProps) {
 
           <div className="mt-4 flex items-center justify-between">
             {!isSignup && (
-              <button className="text-[#94A3B8] text-sm hover:text-gray-700">
+              <button
+                type="button"
+                onClick={() => alert('비밀번호 재설정은 곧 제공됩니다. 그 전까지는 business10082@gmail.com 으로 문의해주세요.')}
+                className="text-[#94A3B8] text-sm hover:text-gray-700"
+              >
                 비밀번호 재설정
               </button>
             )}
