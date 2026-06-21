@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { User, Users, MapPin, Bell, CreditCard, Database, MessageCircle, Megaphone, FileText, ChevronRight, X, Plus, LogOut, Layers, Copy, Check, Loader2, Link, Trash2 } from 'lucide-react'
+import { User, Users, MapPin, Bell, CreditCard, Database, MessageCircle, Megaphone, FileText, ChevronRight, X, Plus, LogOut, Layers, Copy, Check, Loader2, Link, Trash2, Sparkles, Crown, Zap } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { AdBanner } from './AdBanner'
 import { getMyFamily, createFamily, joinFamily, shareExistingItems, Family } from '../../api/families'
 import { fetchLocations, createLocation, deleteLocation, StorageLocation } from '../../api/locations'
 import { fetchItems } from '../../api/items'
+import { getMySubscription, getPlans, createCheckout, createPortal, SubscriptionInfo, Plan } from '../../api/subscriptions'
 
 interface SettingsProps {
   onLogout: () => void
@@ -76,11 +77,52 @@ export function Settings({ onLogout }: SettingsProps) {
       setExporting(false)
     }
   }
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false)
+  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null)
+  const [plans, setPlans] = useState<Record<string, Plan>>({})
+  const [subLoading, setSubLoading] = useState(false)
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
   const [showNotificationModal, setShowNotificationModal] = useState(false)
   const [showCategoriesModal, setShowCategoriesModal] = useState(false)
   const [enabledCategories, setEnabledCategories] = useState<Set<string>>(
     new Set(ALL_CATEGORIES.map((c) => c.id))
   )
+
+  const openSubscriptionModal = async () => {
+    setShowSubscriptionModal(true)
+    setSubLoading(true)
+    try {
+      const [sub, planData] = await Promise.all([getMySubscription(), getPlans()])
+      setSubscription(sub)
+      setPlans(planData)
+    } catch {
+      setSubscription(null)
+    } finally {
+      setSubLoading(false)
+    }
+  }
+
+  const handleSubscribePlan = async (planKey: string) => {
+    if (planKey === 'free') return
+    setCheckoutLoading(planKey)
+    try {
+      const { checkout_url } = await createCheckout(planKey)
+      window.location.href = checkout_url
+    } catch {
+      showToast('결제 페이지를 열 수 없어요. 잠시 후 다시 시도해주세요.')
+    } finally {
+      setCheckoutLoading(null)
+    }
+  }
+
+  const handleManageSubscription = async () => {
+    try {
+      const { portal_url } = await createPortal()
+      window.location.href = portal_url
+    } catch {
+      showToast('구독 관리 페이지를 열 수 없어요')
+    }
+  }
 
   const handleLogout = () => {
     if (confirm('로그아웃 하시겠습니까?')) {
@@ -320,16 +362,19 @@ export function Settings({ onLogout }: SettingsProps) {
           <h2 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-2">구독 및 데이터</h2>
           <div className="bg-white border border-[#CBD5E1] rounded-xl overflow-hidden divide-y divide-gray-200 shadow-sm">
             <button
-              onClick={() => showToast('구독·결제 기능은 준비 중이에요')}
+              onClick={openSubscriptionModal}
               className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-[#F8FAFC]"
             >
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <CreditCard size={18} className="text-[#475569]" />
+                <div className="p-2 bg-teal-50 rounded-lg">
+                  <CreditCard size={18} className="text-[#14B8A6]" />
                 </div>
-                <span className="text-sm font-medium">구독 관리</span>
+                <div className="text-left">
+                  <p className="text-sm font-medium">구독 관리</p>
+                  <p className="text-xs text-[#94A3B8]">무료 · 스타터 · 프로 · 프리미엄</p>
+                </div>
               </div>
-              <span className="text-xs text-[#94A3B8]">준비 중</span>
+              <ChevronRight size={18} className="text-gray-400" />
             </button>
             <button
               onClick={handleExport}
@@ -403,6 +448,102 @@ export function Settings({ onLogout }: SettingsProps) {
           <p>체크홈 v1.0.0</p>
         </div>
       </div>
+
+      {showSubscriptionModal && (
+        <div className="absolute inset-0 bg-black/50 flex items-end z-50">
+          <div className="bg-white w-full rounded-t-2xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-4 py-3 flex items-center justify-between">
+              <h2 className="text-base font-bold">구독 플랜</h2>
+              <button onClick={() => setShowSubscriptionModal(false)}><X size={20} /></button>
+            </div>
+
+            {subLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 size={28} className="animate-spin text-[#14B8A6]" />
+              </div>
+            ) : (
+              <div className="px-4 py-5 space-y-4">
+                {/* 현재 플랜 */}
+                {subscription && (
+                  <div className="bg-gradient-to-r from-[#0D9488] to-[#14B8A6] rounded-2xl p-4 text-white">
+                    <p className="text-xs opacity-75 mb-1">현재 플랜</p>
+                    <p className="text-lg font-bold capitalize">
+                      {subscription.plan === 'free' ? '무료' :
+                       subscription.plan === 'starter' ? '스타터' :
+                       subscription.plan === 'pro' ? '프로' : '프리미엄'}
+                    </p>
+                    {subscription.current_period_end && subscription.plan !== 'free' && (
+                      <p className="text-xs opacity-75 mt-1">
+                        {subscription.cancel_at_period_end ? '해지 예정: ' : '다음 결제: '}
+                        {new Date(subscription.current_period_end).toLocaleDateString('ko-KR')}
+                      </p>
+                    )}
+                    {subscription.plan !== 'free' && (
+                      <button
+                        onClick={handleManageSubscription}
+                        className="mt-3 text-xs font-semibold underline opacity-80"
+                      >
+                        구독 변경 · 해지
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* 플랜 카드 목록 */}
+                {[
+                  { key: 'starter', label: '스타터', price: '₩4,900/월', icon: Zap, color: 'bg-blue-50 text-blue-600',
+                    features: ['항목 무제한 등록', '사진 첨부 (최대 8장)', '보관 위치 관리', 'AI 사진 인식'] },
+                  { key: 'pro', label: '프로', price: '₩9,900/월', icon: Sparkles, color: 'bg-teal-50 text-teal-600',
+                    features: ['스타터 모든 기능', '가족 공유 (최대 6명)', 'AI 인식 강화 (고급 모델)', '데이터 우선 처리'] },
+                  { key: 'premium', label: '프리미엄', price: '₩19,900/월', icon: Crown, color: 'bg-amber-50 text-amber-600',
+                    features: ['프로 모든 기능', '가족 공유 무제한', '만료 알림 (이메일·앱)', '전용 고객지원'] },
+                ].map(({ key, label, price, icon: Icon, color, features }) => {
+                  const isCurrent = subscription?.plan === key
+                  return (
+                    <div key={key} className={`border rounded-2xl p-4 ${isCurrent ? 'border-[#14B8A6] bg-teal-50/30' : 'border-[#E2E8F0]'}`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className={`p-2 rounded-xl ${color}`}>
+                            <Icon size={16} />
+                          </div>
+                          <div>
+                            <p className="font-bold text-[#1A1A1A] text-sm">{label}</p>
+                            <p className="text-xs text-[#14B8A6] font-semibold">{price}</p>
+                          </div>
+                        </div>
+                        {isCurrent ? (
+                          <span className="text-xs font-semibold text-[#14B8A6] bg-teal-100 px-2.5 py-1 rounded-full">현재 플랜</span>
+                        ) : (
+                          <button
+                            onClick={() => handleSubscribePlan(key)}
+                            disabled={checkoutLoading === key}
+                            className="text-xs font-semibold bg-[#1A1A1A] text-white px-3 py-1.5 rounded-lg hover:bg-[#14B8A6] transition-colors disabled:opacity-50 flex items-center gap-1"
+                          >
+                            {checkoutLoading === key ? <Loader2 size={12} className="animate-spin" /> : null}
+                            구독하기
+                          </button>
+                        )}
+                      </div>
+                      <ul className="space-y-1">
+                        {features.map((f) => (
+                          <li key={f} className="text-xs text-[#475569] flex items-center gap-1.5">
+                            <span className="w-1 h-1 bg-[#14B8A6] rounded-full flex-shrink-0" />
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )
+                })}
+
+                <p className="text-xs text-[#94A3B8] text-center pb-2">
+                  결제는 Stripe를 통해 안전하게 처리됩니다. 언제든지 해지 가능.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {showFamilyModal && (
         <div className="absolute inset-0 bg-black/50 flex items-end z-50">
