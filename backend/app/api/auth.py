@@ -58,15 +58,23 @@ def google_social_login(req: OAuthCodeRequest, db: Session = Depends(get_db)):
             "https://oauth2.googleapis.com/token",
             data={
                 "code": req.code,
-                "client_id": settings.GOOGLE_CLIENT_ID,
-                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                # 값 끝의 공백/줄바꿈(환경변수 붙여넣기 시 흔함)이 invalid_client를 유발하므로 방어적으로 제거
+                "client_id": (settings.GOOGLE_CLIENT_ID or "").strip(),
+                "client_secret": (settings.GOOGLE_CLIENT_SECRET or "").strip(),
                 "redirect_uri": req.redirect_uri,
                 "grant_type": "authorization_code",
             },
         )
 
     if token_resp.status_code != 200:
-        raise HTTPException(status_code=400, detail="Google 인증에 실패했습니다")
+        # 구글이 돌려준 실제 에러 코드만 노출 (error/error_description에는 비밀값 미포함)
+        try:
+            err = token_resp.json()
+            g_error = err.get("error", "unknown")
+            g_desc = err.get("error_description", "")
+        except Exception:
+            g_error, g_desc = "non_json", token_resp.text[:200]
+        raise HTTPException(status_code=400, detail=f"Google 인증 실패: {g_error} - {g_desc}")
 
     id_token_str = token_resp.json().get("id_token")
     if not id_token_str:
