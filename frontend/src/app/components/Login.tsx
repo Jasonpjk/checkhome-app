@@ -47,7 +47,7 @@ export function Login({ onLogin }: LoginProps) {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gray-200 flex items-center justify-center">
+    <div className="h-full w-full bg-gray-200 flex items-center justify-center">
       {showTerms && (
         <div className="absolute inset-0 bg-black/50 flex items-end justify-center z-50">
           <div className="bg-white w-full max-w-md rounded-t-2xl max-h-[85vh] overflow-y-auto">
@@ -68,7 +68,7 @@ export function Login({ onLogin }: LoginProps) {
           </div>
         </div>
       )}
-      <div className="h-screen w-full max-w-md bg-white shadow-2xl overflow-y-auto">
+      <div className="h-full w-full max-w-md bg-white shadow-2xl overflow-y-auto">
         <div className="px-6 pt-16 pb-8">
           <div className="mb-10">
             <h1 className="text-3xl font-bold text-[#1A1A1A] mb-2">체크홈</h1>

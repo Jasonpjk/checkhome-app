@@ -137,7 +137,7 @@ export default function App() {
 
   if (currentScreen === 'social-callback') {
     return (
-      <div className="min-h-screen w-full bg-gray-200 flex items-center justify-center">
+      <div className="h-full w-full bg-gray-200 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#14B8A6] mx-auto mb-4" />
           <p className="text-sm text-gray-500">로그인 중...</p>
@@ -156,8 +156,8 @@ export default function App() {
 
   if (editingItem) {
     return (
-      <div className="min-h-screen w-full bg-gray-200 flex items-center justify-center">
-        <div className="h-screen w-full max-w-md shadow-2xl">
+      <div className="h-full w-full bg-gray-200 flex items-center justify-center">
+        <div className="h-full w-full max-w-md shadow-2xl">
           <ItemEdit
             item={editingItem}
             onBack={() => window.history.back()}
@@ -173,8 +173,8 @@ export default function App() {
 
   if (selectedVehicle) {
     return (
-      <div className="min-h-screen w-full bg-gray-200 flex items-center justify-center">
-        <div className="h-screen w-full max-w-md shadow-2xl">
+      <div className="h-full w-full bg-gray-200 flex items-center justify-center">
+        <div className="h-full w-full max-w-md shadow-2xl">
           <VehicleDetail
             vehicle={selectedVehicle}
             onBack={() => window.history.back()}
@@ -186,8 +186,8 @@ export default function App() {
 
   if (selectedItem) {
     return (
-      <div className="min-h-screen w-full bg-gray-200 flex items-center justify-center">
-        <div className="h-screen w-full max-w-md shadow-2xl">
+      <div className="h-full w-full bg-gray-200 flex items-center justify-center">
+        <div className="h-full w-full max-w-md shadow-2xl">
           <ItemDetail
             item={selectedItem}
             onBack={() => window.history.back()}
@@ -208,8 +208,8 @@ export default function App() {
   ]
 
   return (
-    <div className="min-h-screen w-full bg-[#E5E7EB] flex items-center justify-center">
-      <div className="h-screen w-full max-w-md bg-[#F8F9FA] flex flex-col relative shadow-2xl">
+    <div className="h-full w-full bg-[#E5E7EB] flex items-center justify-center">
+      <div className="h-full w-full max-w-md bg-[#F8F9FA] flex flex-col relative shadow-2xl">
         <div className="flex-1 overflow-hidden">
           {activeTab === 'home' && (
             <Home
