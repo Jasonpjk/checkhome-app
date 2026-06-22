@@ -125,7 +125,10 @@ export default function App() {
         setAuth({ user_id: result.user_id, name: result.name, email: result.email, is_admin: result.is_admin }, result.access_token)
         setCurrentScreen('main')
       })
-      .catch(() => {
+      .catch((err) => {
+        // 소셜 로그인 실패 원인을 화면/저장소에 남겨 진단 가능하게 한다 (콜백 후 리다이렉트로 사라지는 문제 방지)
+        const detail = err?.response?.data?.detail || err?.message || '알 수 없는 오류'
+        try { localStorage.setItem('checkhome_oauth_error', String(detail)) } catch {}
         setCurrentScreen('login')
       })
   }, [])

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Mail, Lock, ChevronRight, User, Eye, EyeOff } from 'lucide-react'
 import { login, register, startGoogleLogin, startKakaoLogin } from '../../api/auth'
 import { useAuthStore } from '../../store/authStore'
@@ -21,6 +21,12 @@ export function Login({ onLogin }: LoginProps) {
   const [showTerms, setShowTerms] = useState(false)
   const [toast, setToast] = useState('')
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
+  // 소셜 로그인 실패 시 App.tsx가 localStorage에 남긴 원인을 화면에 표시 (진단용)
+  const [oauthError, setOauthError] = useState('')
+  useEffect(() => {
+    const e = localStorage.getItem('checkhome_oauth_error')
+    if (e) { setOauthError(e); localStorage.removeItem('checkhome_oauth_error') }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -78,6 +84,13 @@ export function Login({ onLogin }: LoginProps) {
               가족이 함께 관리하세요
             </p>
           </div>
+
+          {oauthError && (
+            <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+              <p className="text-xs font-semibold text-red-600 mb-1">소셜 로그인 실패</p>
+              <p className="text-xs text-red-500 break-words">{oauthError}</p>
+            </div>
+          )}
 
           {/* 소셜 로그인 */}
           <div className="space-y-3 mb-6">
