@@ -37,3 +37,8 @@ input, select, textarea {
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* 채워지지 않은 AdSense 광고 슬롯은 숨겨 빈 공백이 화면을 차지하지 않게 한다 */
+ins.adsbygoogle[data-ad-status="unfilled"] {
+  display: none !important;
+}

@@ -3,8 +3,12 @@ import { Package, Star, Shield, Zap, ChevronRight, X } from 'lucide-react'
 
 const ICONS = { package: Package, star: Star, shield: Shield, zap: Zap }
 
-// Google AdSense 광고 단위 (VITE_ADSENSE_CLIENT 환경변수가 있으면 실제 광고, 없으면 하우스 광고)
+// Google AdSense 광고 단위
+// 실제 AdSense 광고는 (1) VITE_ADSENSE_CLIENT 설정 + (2) VITE_ADSENSE_ENABLED=true 일 때만 렌더한다.
+// AdSense 심사 중에는 광고가 안 채워져 빈 회색 박스가 화면을 가득 채우므로,
+// 승인 전까지는 ENABLED를 끈 채로 하우스 광고(디자인 배너)를 노출한다. 승인되면 Vercel에서 켠다.
 const ADSENSE_CLIENT = import.meta.env.VITE_ADSENSE_CLIENT as string | undefined
+const ADSENSE_ENABLED = import.meta.env.VITE_ADSENSE_ENABLED === 'true'
 
 // 광고 단위 슬롯 ID — adSlot prop을 전달하지 않으면 variant별 기본값 사용
 const DEFAULT_AD_SLOTS: Record<string, string> = {
@@ -53,9 +57,9 @@ export function AdBanner({ variant, text, subtext, icon = 'package', adSlot, onC
   const [closed, setClosed] = useState(false)
   if (closed) return null
 
-  // AdSense가 설정되어 있으면 실제 광고 표시 (adSlot 미전달 시 variant별 기본값 사용)
+  // AdSense가 설정되고 명시적으로 활성화된 경우에만 실제 광고 표시 (adSlot 미전달 시 variant별 기본값 사용)
   const slot = adSlot ?? DEFAULT_AD_SLOTS[variant]
-  if (ADSENSE_CLIENT && slot) {
+  if (ADSENSE_CLIENT && ADSENSE_ENABLED && slot) {
     return <AdsenseUnit adSlot={slot} variant={variant} />
   }
 

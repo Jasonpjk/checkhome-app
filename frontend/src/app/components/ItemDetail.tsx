@@ -151,7 +151,7 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
   }
 
   return (
-    <div className="h-screen bg-[#F8F9FA] flex flex-col relative">
+    <div className="h-full bg-[#F8F9FA] flex flex-col relative">
       <div className="bg-white border-b border-[#E2E8F0] px-6 py-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
           <button onClick={onBack} className="p-2 -ml-2 hover:bg-[#F8FAFC] rounded-lg">

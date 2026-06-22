@@ -53,7 +53,7 @@ export function VehicleDetail({ vehicle, onBack }: VehicleDetailProps) {
   }
 
   return (
-    <div className="h-screen bg-[#F8F9FA] overflow-y-auto relative">
+    <div className="h-full bg-[#F8F9FA] overflow-y-auto relative">
       <div className="bg-gradient-to-br from-[#0D9488] to-[#3a9d8d] px-6 pt-10 pb-6 text-white">
         <button onClick={onBack} className="flex items-center gap-2 text-white/80 mb-6">
           <ArrowLeft size={20} />
