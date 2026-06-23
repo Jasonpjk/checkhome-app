@@ -31,14 +31,14 @@ export function startGoogleLogin() {
   sessionStorage.setItem('checkhome_oauth_nonce', nonce)
   const state = btoa(JSON.stringify({ nonce, provider: 'google' }))
   const redirectUri = `${window.location.origin}/auth/callback`
+  // 백엔드는 google refresh_token을 쓰지 않으므로 access_type=offline 불필요.
+  // 카카오(정상)와 동일한 최소 파라미터로 맞춰 unauthorized_client 회피.
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: 'code',
     scope: 'openid email profile',
     state,
-    access_type: 'offline',
-    prompt: 'select_account',
   })
   window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`
 }
