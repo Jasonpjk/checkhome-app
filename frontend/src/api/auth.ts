@@ -13,9 +13,30 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   return data
 }
 
-export async function register(email: string, password: string, name: string): Promise<AuthUser> {
+export interface RequiresVerification {
+  requires_verification: true
+  email: string
+}
+
+export async function register(
+  email: string,
+  password: string,
+  name: string,
+): Promise<AuthUser | RequiresVerification> {
   const { data } = await api.post('/auth/register', { email, password, name })
+  if (data && data.requires_verification) {
+    return { requires_verification: true, email: data.email } as RequiresVerification
+  }
+  return data as AuthUser
+}
+
+export async function verifyEmail(email: string, code: string): Promise<AuthUser> {
+  const { data } = await api.post('/auth/verify-email', { email, code })
   return data
+}
+
+export async function resendCode(email: string): Promise<void> {
+  await api.post('/auth/resend-code', { email })
 }
 
 export async function socialLogin(provider: 'google' | 'kakao', code: string, redirectUri: string): Promise<AuthUser> {

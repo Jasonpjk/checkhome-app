@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Mail, Lock, ChevronRight, User, Eye, EyeOff, Loader2 } from 'lucide-react'
-import { login, register, startGoogleLogin, startKakaoLogin } from '../../api/auth'
+import { Mail, Lock, ChevronRight, User, Eye, EyeOff, Loader2, ShieldCheck, ChevronLeft } from 'lucide-react'
+import { login, register, verifyEmail, resendCode, startGoogleLogin, startKakaoLogin } from '../../api/auth'
 import { useAuthStore } from '../../store/authStore'
 
 interface LoginProps {
@@ -22,12 +22,24 @@ export function Login({ onLogin }: LoginProps) {
   const [showTerms, setShowTerms] = useState(false)
   const [toast, setToast] = useState('')
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
+  // 이메일 인증 단계 상태
+  const [pendingVerifyEmail, setPendingVerifyEmail] = useState<string | null>(null)
+  const [verifyCode, setVerifyCode] = useState('')
+  const [verifying, setVerifying] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
   // 소셜 로그인 실패 시 App.tsx가 localStorage에 남긴 원인을 화면에 표시 (진단용)
   const [oauthError, setOauthError] = useState('')
   useEffect(() => {
     const e = localStorage.getItem('checkhome_oauth_error')
     if (e) { setOauthError(e); localStorage.removeItem('checkhome_oauth_error') }
   }, [])
+
+  // 코드 재발송 쿨다운 카운트다운
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const t = setTimeout(() => setResendCooldown((c) => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [resendCooldown])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,19 +58,67 @@ export function Login({ onLogin }: LoginProps) {
     setLoading(true)
     setError('')
     try {
-      let result
       if (isSignup) {
-        result = await register(email, password, name)
+        const result = await register(email, password, name)
+        if ('requires_verification' in result) {
+          // 이메일 인증 필요 — 자동 로그인하지 않고 인증 화면으로 전환
+          setPendingVerifyEmail(result.email)
+          setVerifyCode('')
+          setResendCooldown(0)
+          setLoading(false)
+          return
+        }
+        setAuth({ user_id: result.user_id, name: result.name, email: result.email, is_admin: result.is_admin }, result.access_token)
+        onLogin()
       } else {
-        result = await login(email, password)
+        const result = await login(email, password)
+        setAuth({ user_id: result.user_id, name: result.name, email: result.email, is_admin: result.is_admin }, result.access_token)
+        onLogin()
       }
-      setAuth({ user_id: result.user_id, name: result.name, email: result.email, is_admin: result.is_admin }, result.access_token)
-      onLogin()
     } catch (err: any) {
       setError(err.response?.data?.detail || '오류가 발생했습니다')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!pendingVerifyEmail || verifying) return
+    if (verifyCode.length !== 6) {
+      setError('6자리 인증 코드를 입력해주세요')
+      return
+    }
+    setVerifying(true)
+    setError('')
+    try {
+      const result = await verifyEmail(pendingVerifyEmail, verifyCode)
+      setAuth({ user_id: result.user_id, name: result.name, email: result.email, is_admin: result.is_admin }, result.access_token)
+      onLogin()
+    } catch {
+      setError('인증 코드가 올바르지 않거나 만료됐습니다. 다시 확인해주세요.')
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  const handleResend = async () => {
+    if (!pendingVerifyEmail || resendCooldown > 0) return
+    setError('')
+    try {
+      await resendCode(pendingVerifyEmail)
+      setResendCooldown(30)
+      showToast('인증 코드를 다시 보냈어요. 이메일을 확인해주세요.')
+    } catch (err: any) {
+      setError(err.response?.data?.detail || '코드 재발송에 실패했어요. 잠시 후 다시 시도해주세요.')
+    }
+  }
+
+  const handleBackFromVerify = () => {
+    setPendingVerifyEmail(null)
+    setVerifyCode('')
+    setError('')
+    setResendCooldown(0)
   }
 
   const handleSocialLogin = (provider: 'google' | 'kakao') => {
@@ -94,6 +154,68 @@ export function Login({ onLogin }: LoginProps) {
         </div>
       )}
       <div className="h-full w-full max-w-md bg-white shadow-2xl overflow-y-auto">
+        {pendingVerifyEmail ? (
+          <div className="px-6 pt-16 pb-8">
+            <button
+              type="button"
+              onClick={handleBackFromVerify}
+              className="flex items-center gap-1 text-[#475569] text-sm mb-8 hover:text-gray-700"
+            >
+              <ChevronLeft size={18} />
+              뒤로
+            </button>
+
+            <div className="mb-8">
+              <div className="w-14 h-14 rounded-2xl bg-[#F0FDFA] flex items-center justify-center mb-4">
+                <ShieldCheck size={28} className="text-[#14B8A6]" />
+              </div>
+              <h1 className="text-2xl font-bold text-[#1A1A1A] mb-2">이메일 인증</h1>
+              <p className="text-[#475569] text-sm leading-relaxed">
+                이메일로 보낸 6자리 인증 코드를 입력하세요.
+                <br />
+                <span className="font-medium text-[#1A1A1A] break-all">{pendingVerifyEmail}</span>
+                로 보냈어요.
+              </p>
+            </div>
+
+            <form onSubmit={handleVerify} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm text-gray-700">인증 코드</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={verifyCode}
+                  onChange={(e) => setVerifyCode(e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="000000"
+                  autoFocus
+                  className="w-full bg-[#F8FAFC] rounded-xl px-4 py-3.5 text-center text-2xl tracking-[0.5em] font-semibold outline-none focus:ring-2 focus:ring-[#14B8A6]"
+                />
+              </div>
+
+              {error && <p className="text-red-500 text-sm">{error}</p>}
+
+              <button
+                type="submit"
+                disabled={verifying || verifyCode.length !== 6}
+                className="w-full bg-gradient-to-r from-[#14B8A6] to-[#0D9488] text-white py-4 rounded-xl flex items-center justify-center gap-2 shadow-md mt-4 disabled:opacity-50"
+              >
+                {verifying ? <Loader2 size={20} className="animate-spin" /> : '확인'}
+              </button>
+            </form>
+
+            <div className="mt-5 text-center">
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resendCooldown > 0}
+                className="text-sm text-[#14B8A6] disabled:text-[#94A3B8]"
+              >
+                {resendCooldown > 0 ? `코드 재발송 (${resendCooldown}초)` : '코드 재발송'}
+              </button>
+            </div>
+          </div>
+        ) : (
         <div className="px-6 pt-16 pb-8">
           <div className="mb-10">
             <h1 className="text-3xl font-bold text-[#1A1A1A] mb-2">체크홈</h1>
@@ -274,6 +396,7 @@ export function Login({ onLogin }: LoginProps) {
             </button>
           </div>
         </div>
+        )}
       </div>
       {toast && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[60] bg-[#1A1A1A] text-white text-sm px-4 py-2.5 rounded-full shadow-lg whitespace-nowrap">

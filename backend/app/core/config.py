@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     PORTONE_CHANNEL_KEY: Optional[str] = None    # 채널키 (channel-key-xxxx)
     # 관리자 자동 부여 이메일 (쉼표 구분, 예: admin@example.com,ceo@example.com)
     ADMIN_EMAIL: Optional[str] = None
+    # 회원가입 이메일 인증 (Resend) — 미설정 시 인증 단계 없이 자동 로그인
+    RESEND_API_KEY: Optional[str] = None
+    MAIL_FROM: str = "onboarding@resend.dev"
+    APP_NAME: str = "체크홈"
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

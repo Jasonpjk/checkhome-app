@@ -24,3 +24,12 @@ class TokenResponse(BaseModel):
 class OAuthCodeRequest(BaseModel):
     code: str
     redirect_uri: str
+
+
+class VerifyEmailRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+
+class ResendRequest(BaseModel):
+    email: EmailStr
