@@ -15,6 +15,10 @@ const statusConfig = {
   expired: { bg: 'bg-red-50', badge: 'bg-red-500', text: 'text-red-700' },
 }
 
+// 백엔드가 정의되지 않은 status를 주더라도 흰 화면으로 죽지 않도록 안전 폴백
+const getStatusConfig = (status: string) =>
+  statusConfig[status as keyof typeof statusConfig] || statusConfig.normal
+
 function getCheckStatus(check: VehicleCheck): keyof typeof statusConfig {
   if (check.days_left === null) return 'normal'
   if (check.days_left < 0) return 'expired'
@@ -31,6 +35,14 @@ export function VehicleDetail({ vehicle, onBack }: VehicleDetailProps) {
   const [checkMemo, setCheckMemo] = useState('')
   const [saving, setSaving] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  // vehicle.checks가 아직 안 들어온(undefined) 동안만 로딩으로 간주, 빈 배열이면 '없음'으로 구분
+  const loading = vehicle.checks == null
+  const [toast, setToast] = useState('')
+
+  const showToast = (msg: string) => {
+    setToast(msg)
+    setTimeout(() => setToast(''), 2500)
+  }
 
   const handleCompleteCheck = async () => {
     if (!selectedCheck) return
@@ -47,6 +59,7 @@ export function VehicleDetail({ vehicle, onBack }: VehicleDetailProps) {
       setTimeout(() => setShowSuccess(false), 1500)
     } catch (err) {
       console.error(err)
+      showToast('점검 저장에 실패했어요')
     } finally {
       setSaving(false)
     }
@@ -73,12 +86,12 @@ export function VehicleDetail({ vehicle, onBack }: VehicleDetailProps) {
         <div className="space-y-2">
           {checks.length === 0 && (
             <div className="py-10 text-center text-[#94A3B8]">
-              <p className="text-sm">점검 항목을 불러오는 중이에요</p>
+              <p className="text-sm">{loading ? '점검 항목을 불러오는 중이에요' : '등록된 점검 항목이 없어요'}</p>
             </div>
           )}
           {checks.map((check) => {
             const status = getCheckStatus(check)
-            const cfg = statusConfig[status]
+            const cfg = getStatusConfig(status)
             return (
               <button
                 key={check.id}
@@ -172,6 +185,8 @@ export function VehicleDetail({ vehicle, onBack }: VehicleDetailProps) {
           </div>
         </div>
       )}
+
+      {toast && <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] bg-[#1A1A1A] text-white text-sm px-4 py-2.5 rounded-full shadow-lg whitespace-nowrap">{toast}</div>}
     </div>
   )
 }

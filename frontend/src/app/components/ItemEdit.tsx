@@ -24,6 +24,8 @@ export function ItemEdit({ item, onBack, onSaved }: ItemEditProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [savingPhoto, setSavingPhoto] = useState(false)
+  const [toast, setToast] = useState('')
+  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(''), 2500) }
   // 사용자가 사진을 변경/삭제했을 때만 photos를 전송 (미변경 시 기존 사진 보존)
   const photoDirtyRef = useRef(false)
 
@@ -45,7 +47,10 @@ export function ItemEdit({ item, onBack, onSaved }: ItemEditProps) {
     setSavingPhoto(true)
     try {
       const dataUrl = await fileToCompressedDataUrl(file)
-      if (dataUrl.length > 7_000_000) return
+      if (dataUrl.length > 7_000_000) {
+        showToast('사진 용량이 너무 커요(최대 7MB)')
+        return
+      }
       photoDirtyRef.current = true
       setPhotos((prev) => [...prev, dataUrl])
     } catch (err) {
@@ -167,6 +172,7 @@ export function ItemEdit({ item, onBack, onSaved }: ItemEditProps) {
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               min="1"
+              placeholder="비우면 1로 저장돼요"
               className="w-full bg-white border border-[#E2E8F0] rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#14B8A6]"
             />
           </div>
@@ -175,6 +181,7 @@ export function ItemEdit({ item, onBack, onSaved }: ItemEditProps) {
         <div>
           <label className="block text-sm font-semibold text-[#1A1A1A] mb-3">사진</label>
           <PhotoMultiPicker photos={photos} onAdd={handleAddPhoto} onRemove={handleRemovePhoto} max={8} busy={savingPhoto} />
+          <p className="text-xs text-[#94A3B8] mt-2">사진 변경은 '수정 완료'를 눌러야 저장돼요.</p>
         </div>
 
         <div>
@@ -221,6 +228,8 @@ export function ItemEdit({ item, onBack, onSaved }: ItemEditProps) {
           </div>
         </div>
       )}
+
+      {toast && <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] bg-[#1A1A1A] text-white text-sm px-4 py-2.5 rounded-full shadow-lg whitespace-nowrap">{toast}</div>}
     </div>
   )
 }

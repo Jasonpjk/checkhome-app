@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Bell, AlertCircle, Calendar, ChevronRight } from 'lucide-react'
 import { fetchStats, ItemStats, Item } from '../../api/items'
-import { statusConfig } from '../data/statusConfig'
+import { getStatusConfig } from '../data/statusConfig'
 import { AdBanner } from './AdBanner'
 
 interface HomeProps {
@@ -17,13 +17,15 @@ export function Home({ onCategoryClick, onItemClick, onActionNeededClick, onThis
   const [error, setError] = useState(false)
   const [toast, setToast] = useState('')
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
-  useEffect(() => {
+  const loadStats = () => {
+    setLoading(true)
     setError(false)
     fetchStats()
       .then(setStats)
       .catch(() => setError(true))
       .finally(() => setLoading(false))
-  }, [])
+  }
+  useEffect(() => { loadStats() }, [])
 
   const categories = ['식품', '약품', '욕실/화장품', '세제/청소', '차량', '필터/가전']
   const categoriesTop = categories.slice(0, 4)
@@ -36,6 +38,14 @@ export function Home({ onCategoryClick, onItemClick, onActionNeededClick, onThis
           <div>
             <h1 className="text-3xl font-bold text-white mb-1">체크홈</h1>
             <p className="text-teal-50 text-sm">오늘 확인할 항목</p>
+            {error && (
+              <button
+                onClick={loadStats}
+                className="mt-1 text-xs font-medium text-white/90 underline underline-offset-2"
+              >
+                불러오기 실패 · 다시 시도
+              </button>
+            )}
           </div>
           <button
             onClick={() => showToast('알림 기능은 곧 제공될 예정이에요')}
@@ -98,8 +108,8 @@ export function Home({ onCategoryClick, onItemClick, onActionNeededClick, onThis
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${statusConfig[item.status].badge}`}>
-                          {statusConfig[item.status].label}
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusConfig(item.status).badge}`}>
+                          {getStatusConfig(item.status).label}
                         </span>
                         <span className="text-xs text-[#94A3B8]">{item.category}</span>
                       </div>

@@ -31,3 +31,12 @@ export const riskConfig: Record<string, { badge: string; label: string }> = {
   medium: { badge: 'bg-amber-500 text-white', label: '중' },
   low: { badge: 'bg-slate-400 text-white', label: '약' },
 }
+
+// 백엔드가 정의되지 않은 status/risk 값을 주더라도 화면이 흰 화면으로 죽지 않도록 안전 폴백 제공
+const FALLBACK_STATUS = { badge: 'bg-gray-100 text-gray-600 border border-gray-200', label: '확인', color: '#94A3B8' }
+const FALLBACK_RISK = { badge: 'bg-slate-400 text-white', label: '-' }
+
+export const getStatusConfig = (status?: string) =>
+  (status && statusConfig[status]) || FALLBACK_STATUS
+export const getRiskConfig = (risk?: string) =>
+  (risk && riskConfig[risk]) || FALLBACK_RISK

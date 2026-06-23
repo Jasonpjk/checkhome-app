@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Search, SlidersHorizontal, X, ChevronRight, Lock, Users, RotateCcw } from 'lucide-react'
+import { Search, SlidersHorizontal, X, ChevronRight, Lock, Users, RotateCcw, Loader2 } from 'lucide-react'
 import { fetchItems, restoreItem, Item } from '../../api/items'
-import { statusConfig } from '../data/statusConfig'
+import { getStatusConfig } from '../data/statusConfig'
 import { AdBanner } from './AdBanner'
 
 const ACTION_LABEL: Record<string, string> = {
@@ -24,6 +24,10 @@ interface StorageProps {
 export function Storage({ onItemClick, initialCategory, smartFilter, onFilterChange }: StorageProps) {
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [restoringId, setRestoringId] = useState<number | null>(null)
+  const [toast, setToast] = useState('')
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
   const [selectedCategory, setSelectedCategory] = useState(initialCategory || '전체')
   const [selectedStatus, setSelectedStatus] = useState('전체')
   const [searchQuery, setSearchQuery] = useState('')
@@ -35,11 +39,13 @@ export function Storage({ onItemClick, initialCategory, smartFilter, onFilterCha
 
   const loadItems = useCallback(async () => {
     setLoading(true)
+    setError(false)
     try {
       const data = await fetchItems(undefined, viewMode === 'archive' ? { active: false } : undefined)
       setItems(data)
     } catch (err) {
       console.error(err)
+      setError(true)
     } finally {
       setLoading(false)
     }
@@ -49,11 +55,16 @@ export function Storage({ onItemClick, initialCategory, smartFilter, onFilterCha
 
   const handleRestore = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation()
+    if (restoringId !== null) return
+    setRestoringId(id)
     try {
       await restoreItem(id)
       setItems((prev) => prev.filter((i) => i.id !== id))
     } catch (err) {
       console.error(err)
+      showToast('복구에 실패했어요. 다시 시도해주세요.')
+    } finally {
+      setRestoringId(null)
     }
   }
 
@@ -199,6 +210,16 @@ export function Storage({ onItemClick, initialCategory, smartFilter, onFilterCha
               <div key={i} className="bg-white rounded-xl p-4 shadow-sm border border-[#E2E8F0] animate-pulse h-20" />
             ))}
           </div>
+        ) : error ? (
+          <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-[#E2E8F0]">
+            <p className="text-sm text-[#475569] font-medium mb-3">불러오기에 실패했어요</p>
+            <button
+              onClick={loadItems}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#14B8A6] text-white rounded-lg text-sm font-semibold hover:bg-[#0D9488]"
+            >
+              <RotateCcw size={14} />다시 시도
+            </button>
+          </div>
         ) : sorted.length > 0 ? (
           <div className="space-y-3">
             {sorted.map((item) => (
@@ -218,9 +239,14 @@ export function Storage({ onItemClick, initialCategory, smartFilter, onFilterCha
                   </div>
                   <button
                     onClick={(e) => handleRestore(item.id, e)}
-                    className="flex items-center gap-1 px-3 py-2 bg-[#14B8A6] text-white rounded-lg text-xs font-semibold hover:bg-[#0D9488] flex-shrink-0"
+                    disabled={restoringId === item.id}
+                    className="flex items-center gap-1 px-3 py-2 bg-[#14B8A6] text-white rounded-lg text-xs font-semibold hover:bg-[#0D9488] flex-shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <RotateCcw size={14} />복구
+                    {restoringId === item.id ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <RotateCcw size={14} />
+                    )}복구
                   </button>
                 </div>
               ) : (
@@ -232,8 +258,8 @@ export function Storage({ onItemClick, initialCategory, smartFilter, onFilterCha
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${statusConfig[item.status].badge}`}>
-                          {statusConfig[item.status].label}
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusConfig(item.status).badge}`}>
+                          {getStatusConfig(item.status).label}
                         </span>
                         <span className="text-xs text-[#94A3B8]">{item.category}</span>
                         {item.family_id && (item.is_family_shared ? (
@@ -270,6 +296,11 @@ export function Storage({ onItemClick, initialCategory, smartFilter, onFilterCha
           <AdBanner variant="bottom" text="소방 점검 전문 업체 안심119" subtext="우리 집 안전 점검 무료 상담 받아보세요" icon="shield" />
         </div>
       </div>
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] bg-[#1A1A1A] text-white text-sm px-4 py-2.5 rounded-full shadow-lg whitespace-nowrap">
+          {toast}
+        </div>
+      )}
     </div>
   )
 }

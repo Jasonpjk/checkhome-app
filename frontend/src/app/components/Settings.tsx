@@ -55,6 +55,7 @@ export function Settings({ onLogout }: SettingsProps) {
   const [toast, setToast] = useState('')
   const [exporting, setExporting] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [cancelingSubscription, setCancelingSubscription] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [deleteLocConfirmId, setDeleteLocConfirmId] = useState<number | null>(null)
 
@@ -158,14 +159,18 @@ export function Settings({ onLogout }: SettingsProps) {
   }
 
   const doManageSubscription = async () => {
-    setShowCancelConfirm(false)
+    setCancelingSubscription(true)
     try {
       const result = await cancelSubscription()
+      setShowCancelConfirm(false)
       showToast(result.message)
       const sub = await getMySubscription()
       setSubscription(sub)
     } catch {
+      setShowCancelConfirm(false)
       showToast('구독 해지 중 오류가 발생했어요')
+    } finally {
+      setCancelingSubscription(false)
     }
   }
 
@@ -269,7 +274,7 @@ export function Settings({ onLogout }: SettingsProps) {
       setLocations((p) => [...p, created])
       setNewLoc('')
     } catch {
-      // 중복 등 — 조용히 무시
+      showToast('이미 있는 위치이거나 추가에 실패했어요')
     }
   }
 
@@ -289,9 +294,16 @@ export function Settings({ onLogout }: SettingsProps) {
 
   const copyInviteLink = (code: string) => {
     const link = `https://checkhome-app-seven.vercel.app/join/${code}`
-    navigator.clipboard?.writeText(link).catch(() => {})
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    const onFail = () => showToast('복사에 실패했어요. 링크를 길게 눌러 복사해주세요.')
+    const p = navigator.clipboard?.writeText(link)
+    if (p) {
+      p.then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }).catch(onFail)
+    } else {
+      onFail()
+    }
   }
 
   const ROLE_LABEL: Record<string, string> = {
@@ -624,7 +636,7 @@ export function Settings({ onLogout }: SettingsProps) {
                         ) : (
                           <button
                             onClick={() => handleSubscribePlan(key)}
-                            disabled={checkoutLoading === key}
+                            disabled={checkoutLoading !== null}
                             className="text-xs font-semibold bg-[#1A1A1A] text-white px-3 py-1.5 rounded-lg hover:bg-[#14B8A6] transition-colors disabled:opacity-50 flex items-center gap-1"
                           >
                             {checkoutLoading === key ? <Loader2 size={12} className="animate-spin" /> : null}
@@ -823,9 +835,10 @@ export function Settings({ onLogout }: SettingsProps) {
               </button>
             </div>
             <div className="px-4 py-4">
-              <div className="bg-gray-100 rounded-lg p-3 mb-4">
+              <div className="bg-gray-100 rounded-lg p-3 mb-2">
                 <p className="text-xs text-[#475569]">홈 화면에 표시할 카테고리를 선택하세요.</p>
               </div>
+              <p className="text-xs text-[#94A3B8] mb-4">이 설정은 곧 적용됩니다 (준비 중)</p>
               <div className="space-y-2">
                 {ALL_CATEGORIES.map((cat) => (
                   <label key={cat.id} className="flex items-center justify-between py-2.5 border-b border-[#F1F5F9] last:border-0">
@@ -911,6 +924,9 @@ export function Settings({ onLogout }: SettingsProps) {
               </button>
             </div>
             <div className="px-4 py-4 space-y-4">
+              <div className="bg-gray-100 rounded-lg p-3">
+                <p className="text-xs text-[#94A3B8]">이 설정은 곧 적용됩니다 (준비 중)</p>
+              </div>
               {[
                 { title: '강 위험도 항목', items: ['D-90', 'D-30', 'D-7', 'D-1', '당일', '초과 알림'] },
                 { title: '중 위험도 항목', items: ['D-30', 'D-7', 'D-1', '당일'] },
@@ -969,8 +985,11 @@ export function Settings({ onLogout }: SettingsProps) {
             <h3 className="text-lg font-bold text-[#1A1A1A] mb-2">구독 해지</h3>
             <p className="text-sm text-[#64748B] mb-6">구독을 해지하시겠습니까? 현재 결제 기간이 끝날 때까지 이용 가능합니다.</p>
             <div className="flex gap-3">
-              <button onClick={() => setShowCancelConfirm(false)} className="flex-1 py-3 border border-[#E2E8F0] rounded-xl text-sm font-semibold text-[#475569]">취소</button>
-              <button onClick={doManageSubscription} className="flex-1 py-3 bg-red-500 text-white rounded-xl text-sm font-semibold">해지</button>
+              <button onClick={() => setShowCancelConfirm(false)} disabled={cancelingSubscription} className="flex-1 py-3 border border-[#E2E8F0] rounded-xl text-sm font-semibold text-[#475569] disabled:opacity-50">취소</button>
+              <button onClick={doManageSubscription} disabled={cancelingSubscription} className="flex-1 py-3 bg-red-500 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-1">
+                {cancelingSubscription && <Loader2 size={14} className="animate-spin" />}
+                해지
+              </button>
             </div>
           </div>
         </div>

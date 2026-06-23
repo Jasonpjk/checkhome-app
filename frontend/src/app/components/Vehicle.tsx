@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Car, ChevronRight, Gauge, Trash2, CheckCircle, X } from 'lucide-react'
+import { Plus, Car, ChevronRight, Gauge, Trash2, CheckCircle, X, Loader2 } from 'lucide-react'
 import { fetchVehicles, createVehicle, deleteVehicle, Vehicle as VehicleType } from '../../api/vehicles'
 import { AdBanner } from './AdBanner'
 
@@ -17,6 +17,13 @@ export function Vehicle({ onVehicleClick }: VehicleProps) {
   const [vehiclePlate, setVehiclePlate] = useState('')
   const [vehicleMileage, setVehicleMileage] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [toast, setToast] = useState('')
+
+  const showToast = (msg: string) => {
+    setToast(msg)
+    setTimeout(() => setToast(''), 2500)
+  }
 
   useEffect(() => {
     fetchVehicles()
@@ -45,13 +52,17 @@ export function Vehicle({ onVehicleClick }: VehicleProps) {
   }
 
   const handleDelete = async (id: number) => {
+    setDeleting(true)
     try {
       await deleteVehicle(id)
       setVehicles((prev) => prev.filter((v) => v.id !== id))
+      setDeleteTargetId(null)
     } catch (err) {
       console.error(err)
+      showToast('삭제에 실패했어요')
+    } finally {
+      setDeleting(false)
     }
-    setDeleteTargetId(null)
   }
 
   const getNextCheck = (vehicle: VehicleType) => {
@@ -174,6 +185,7 @@ export function Vehicle({ onVehicleClick }: VehicleProps) {
                   value={vehicleName}
                   onChange={(e) => setVehicleName(e.target.value)}
                   className="w-full bg-[#F8FAFC] rounded-xl px-4 py-3 text-sm border border-[#E2E8F0] outline-none focus:ring-2 focus:ring-[#14B8A6]"
+                  autoFocus
                   required
                 />
               </div>
@@ -188,13 +200,16 @@ export function Vehicle({ onVehicleClick }: VehicleProps) {
                   required
                 />
               </div>
-              <input
-                type="number"
-                placeholder="현재 주행거리 (km)"
-                value={vehicleMileage}
-                onChange={(e) => setVehicleMileage(e.target.value)}
-                className="w-full bg-[#F8FAFC] rounded-xl px-4 py-3 text-sm border border-[#E2E8F0] outline-none focus:ring-2 focus:ring-[#14B8A6]"
-              />
+              <div>
+                <label className="block text-xs font-semibold text-[#475569] mb-1.5">현재 주행거리 (km) <span className="text-[#94A3B8] font-normal">(선택)</span></label>
+                <input
+                  type="number"
+                  placeholder="선택 · 미입력 시 0으로 저장돼요"
+                  value={vehicleMileage}
+                  onChange={(e) => setVehicleMileage(e.target.value)}
+                  className="w-full bg-[#F8FAFC] rounded-xl px-4 py-3 text-sm border border-[#E2E8F0] outline-none focus:ring-2 focus:ring-[#14B8A6]"
+                />
+              </div>
               <button
                 type="submit"
                 disabled={submitting}
@@ -213,8 +228,11 @@ export function Vehicle({ onVehicleClick }: VehicleProps) {
             <h3 className="text-lg font-bold mb-2">차량 삭제</h3>
             <p className="text-sm text-[#475569] mb-6">이 차량을 삭제하시겠습니까?</p>
             <div className="flex gap-3">
-              <button onClick={() => setDeleteTargetId(null)} className="flex-1 py-3 bg-[#F1F5F9] rounded-xl font-semibold text-sm">취소</button>
-              <button onClick={() => handleDelete(deleteTargetId!)} className="flex-1 py-3 bg-rose-500 text-white rounded-xl font-semibold text-sm">삭제</button>
+              <button onClick={() => setDeleteTargetId(null)} disabled={deleting} className="flex-1 py-3 bg-[#F1F5F9] rounded-xl font-semibold text-sm disabled:opacity-50">취소</button>
+              <button onClick={() => handleDelete(deleteTargetId!)} disabled={deleting} className="flex-1 py-3 bg-rose-500 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50">
+                {deleting && <Loader2 size={16} className="animate-spin" />}
+                {deleting ? '삭제 중...' : '삭제'}
+              </button>
             </div>
           </div>
         </div>
@@ -228,6 +246,8 @@ export function Vehicle({ onVehicleClick }: VehicleProps) {
           </div>
         </div>
       )}
+
+      {toast && <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] bg-[#1A1A1A] text-white text-sm px-4 py-2.5 rounded-full shadow-lg whitespace-nowrap">{toast}</div>}
     </div>
   )
 }

@@ -67,6 +67,8 @@ export function Register({ onRegistered, step: externalStep, onStepChange }: Reg
   const [hasFamily, setHasFamily] = useState(false)
   const [shareWithFamily, setShareWithFamily] = useState(true)
   const [locOptions, setLocOptions] = useState<string[]>([])
+  const [toast, setToast] = useState('')
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
   useEffect(() => {
     getMyFamily().then(() => setHasFamily(true)).catch(() => setHasFamily(false))
@@ -176,11 +178,16 @@ export function Register({ onRegistered, step: externalStep, onStepChange }: Reg
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedCategory) return
+    const trimmedName = productName.trim()
+    if (!trimmedName) {
+      showToast('제품명을 입력해주세요')
+      return
+    }
     setLoading(true)
     setError('')
     try {
       await createItem({
-        name: productName,
+        name: trimmedName,
         category: categoryIdMap[selectedCategory],
         location: location || undefined,
         expiry_date: expiryDate || undefined,
@@ -305,7 +312,7 @@ export function Register({ onRegistered, step: externalStep, onStepChange }: Reg
   const selectedCategoryInfo = categories.find((c) => c.id === selectedCategory)
 
   return (
-    <div className="h-full overflow-y-auto pb-24 bg-[#F8F9FA]">
+    <div className="h-full overflow-y-auto pb-40 bg-[#F8F9FA]">
       <div className="bg-white px-6 pt-10 pb-6 shadow-sm">
         <button
           onClick={() => setStep('category')}
@@ -531,6 +538,8 @@ export function Register({ onRegistered, step: externalStep, onStepChange }: Reg
           </div>
         </div>
       )}
+
+      {toast && <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] bg-[#1A1A1A] text-white text-sm px-4 py-2.5 rounded-full shadow-lg whitespace-nowrap">{toast}</div>}
     </div>
   )
 }

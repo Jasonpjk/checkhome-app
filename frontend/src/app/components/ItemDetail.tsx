@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { ArrowLeft, MapPin, User, Edit2, CheckCircle, Trash2, RefreshCw, Archive, Users, Lock, AlertCircle, RotateCcw } from 'lucide-react'
+import { ArrowLeft, MapPin, User, Edit2, CheckCircle, Trash2, RefreshCw, Archive, Users, Lock, AlertCircle, RotateCcw, Loader2 } from 'lucide-react'
 import { Item, recordAction, deleteItem, updateItem, fetchItem, restoreItem } from '../../api/items'
-import { statusConfig, riskConfig } from '../data/statusConfig'
+import { getStatusConfig, getRiskConfig } from '../data/statusConfig'
 import { AdBanner } from './AdBanner'
 import { fileToCompressedDataUrl } from '../utils/image'
 import { PhotoMultiPicker } from './PhotoMultiPicker'
@@ -28,6 +28,8 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
   const [familyId, setFamilyId] = useState<number | null>(item.family_id)
   const [createdBy, setCreatedBy] = useState<string | null>(item.created_by_name)
   const [togglingShare, setTogglingShare] = useState(false)
+  const [toast, setToast] = useState('')
+  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(''), 2500) }
 
   // 목록 응답에는 사진이 빠져 있으므로, 상세 화면에서 사진을 따로 불러온다.
   useEffect(() => {
@@ -53,6 +55,7 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
       setFamilyId(updated.family_id)
     } catch (err) {
       console.error(err)
+      showToast('변경에 실패했어요')
     } finally {
       setTogglingShare(false)
     }
@@ -61,31 +64,40 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
   const handleAddPhoto = async (file: File) => {
     if (photos.length >= 8) return
     setSavingPhoto(true)
+    const prev = photos
     try {
       const dataUrl = await fileToCompressedDataUrl(file)
-      if (dataUrl.length > 7_000_000) return
+      if (dataUrl.length > 7_000_000) {
+        showToast('사진 용량이 너무 커요(최대 7MB)')
+        return
+      }
       const next = [...photos, dataUrl]
       setPhotos(next)
       await updateItem(item.id, { photos: next })
     } catch (err) {
       console.error(err)
+      setPhotos(prev)
+      showToast('사진 저장에 실패했어요')
     } finally {
       setSavingPhoto(false)
     }
   }
 
   const handleRemovePhoto = async (index: number) => {
+    const prev = photos
     const next = photos.filter((_, i) => i !== index)
     setPhotos(next)
     try {
       await updateItem(item.id, { photos: next })
     } catch (err) {
       console.error(err)
+      setPhotos(prev)
+      showToast('사진 삭제에 실패했어요')
     }
   }
 
-  const statusInfo = statusConfig[item.status]
-  const riskInfo = riskConfig[item.risk]
+  const statusInfo = getStatusConfig(item.status)
+  const riskInfo = getRiskConfig(item.risk)
 
   const handleAction = async (action_type: string, label: string, deactivates = false) => {
     setLoading(true)
@@ -126,9 +138,12 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
     setLoading(true)
     try {
       await deleteItem(item.id)
+      setShowDeleteConfirm(false)
       onDeleted()
     } catch (err) {
       console.error(err)
+      setShowDeleteConfirm(false)
+      showToast('삭제에 실패했어요')
     } finally {
       setLoading(false)
     }
@@ -334,15 +349,17 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 py-3 border border-[#E2E8F0] rounded-xl text-sm font-semibold text-[#475569]"
+                disabled={loading}
+                className="flex-1 py-3 border border-[#E2E8F0] rounded-xl text-sm font-semibold text-[#475569] disabled:opacity-50"
               >
                 취소
               </button>
               <button
-                onClick={() => { setShowDeleteConfirm(false); handleDelete() }}
+                onClick={handleDelete}
                 disabled={loading}
-                className="flex-1 py-3 bg-red-500 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
+                className="flex-1 py-3 bg-red-500 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
               >
+                {loading && <Loader2 size={16} className="animate-spin" />}
                 삭제
               </button>
             </div>
@@ -362,6 +379,8 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
           </div>
         </div>
       )}
+
+      {toast && <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] bg-[#1A1A1A] text-white text-sm px-4 py-2.5 rounded-full shadow-lg whitespace-nowrap">{toast}</div>}
     </div>
   )
 }
