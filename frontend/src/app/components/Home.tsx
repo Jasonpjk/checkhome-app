@@ -162,7 +162,7 @@ export function Home({ onCategoryClick, onItemClick, onActionNeededClick, onThis
         </div>
       </div>
       {toast && (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-[60] bg-[#1A1A1A] text-white text-sm px-4 py-2.5 rounded-full shadow-lg whitespace-nowrap">
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] bg-[#1A1A1A] text-white text-sm px-4 py-2.5 rounded-full shadow-lg whitespace-nowrap">
           {toast}
         </div>
       )}

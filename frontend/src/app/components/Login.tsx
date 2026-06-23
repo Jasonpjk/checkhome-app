@@ -55,7 +55,7 @@ export function Login({ onLogin }: LoginProps) {
   return (
     <div className="h-full w-full bg-gray-200 flex items-center justify-center">
       {showTerms && (
-        <div className="absolute inset-0 bg-black/50 flex items-end justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
           <div className="bg-white w-full max-w-md rounded-t-2xl max-h-[85vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-[#E2E8F0] px-4 py-3 flex items-center justify-between">
               <h2 className="text-base font-bold">약관 및 개인정보처리방침</h2>

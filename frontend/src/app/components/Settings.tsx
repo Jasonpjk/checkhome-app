@@ -526,7 +526,7 @@ export function Settings({ onLogout }: SettingsProps) {
       </div>
 
       {showLanguageModal && (
-        <div className="absolute inset-0 bg-black/50 flex items-end z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-end z-50">
           <div className="bg-white w-full rounded-t-2xl">
             <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-4 py-3 flex items-center justify-between">
               <h2 className="text-base font-bold">{t('settings.language_select')}</h2>
@@ -555,7 +555,7 @@ export function Settings({ onLogout }: SettingsProps) {
       )}
 
       {showSubscriptionModal && (
-        <div className="absolute inset-0 bg-black/50 flex items-end z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-end z-50">
           <div className="bg-white w-full rounded-t-2xl max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-4 py-3 flex items-center justify-between">
               <h2 className="text-base font-bold">구독 플랜</h2>
@@ -654,7 +654,7 @@ export function Settings({ onLogout }: SettingsProps) {
       )}
 
       {showFamilyModal && (
-        <div className="absolute inset-0 bg-black/50 flex items-end z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-end z-50">
           <div className="bg-white w-full rounded-t-2xl max-h-[85vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-4 py-3 flex items-center justify-between">
               <h2 className="text-base font-bold">
@@ -814,7 +814,7 @@ export function Settings({ onLogout }: SettingsProps) {
       )}
 
       {showCategoriesModal && (
-        <div className="absolute inset-0 bg-black/50 flex items-end z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-end z-50">
           <div className="bg-white w-full rounded-t-2xl max-h-[85vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-4 py-3 flex items-center justify-between">
               <h2 className="text-base font-bold">관리 항목 설정</h2>
@@ -850,7 +850,7 @@ export function Settings({ onLogout }: SettingsProps) {
       )}
 
       {showLocationModal && (
-        <div className="absolute inset-0 bg-black/50 flex items-end z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-end z-50">
           <div className="bg-white w-full rounded-t-2xl max-h-[85vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-4 py-3 flex items-center justify-between">
               <h2 className="text-base font-bold">보관 위치 관리</h2>
@@ -902,7 +902,7 @@ export function Settings({ onLogout }: SettingsProps) {
       )}
 
       {showNotificationModal && (
-        <div className="absolute inset-0 bg-black/50 flex items-end z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-end z-50">
           <div className="bg-white w-full rounded-t-2xl max-h-[85vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-4 py-3 flex items-center justify-between">
               <h2 className="text-lg font-bold">알림 설정</h2>
@@ -934,7 +934,7 @@ export function Settings({ onLogout }: SettingsProps) {
       )}
 
       {showTermsModal && (
-        <div className="absolute inset-0 bg-black/50 flex items-end z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-end z-50">
           <div className="bg-white w-full rounded-t-2xl max-h-[85vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-4 py-3 flex items-center justify-between">
               <h2 className="text-base font-bold">약관 및 개인정보처리방침</h2>
@@ -958,13 +958,13 @@ export function Settings({ onLogout }: SettingsProps) {
       )}
 
       {toast && (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-[60] bg-[#1A1A1A] text-white text-sm px-4 py-2.5 rounded-full shadow-lg whitespace-nowrap">
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] bg-[#1A1A1A] text-white text-sm px-4 py-2.5 rounded-full shadow-lg whitespace-nowrap">
           {toast}
         </div>
       )}
 
       {showCancelConfirm && (
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] px-6">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] px-6">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 className="text-lg font-bold text-[#1A1A1A] mb-2">구독 해지</h3>
             <p className="text-sm text-[#64748B] mb-6">구독을 해지하시겠습니까? 현재 결제 기간이 끝날 때까지 이용 가능합니다.</p>
@@ -977,7 +977,7 @@ export function Settings({ onLogout }: SettingsProps) {
       )}
 
       {showLogoutConfirm && (
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] px-6">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] px-6">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 className="text-lg font-bold text-[#1A1A1A] mb-2">로그아웃</h3>
             <p className="text-sm text-[#64748B] mb-6">로그아웃 하시겠습니까?</p>
@@ -990,7 +990,7 @@ export function Settings({ onLogout }: SettingsProps) {
       )}
 
       {deleteLocConfirmId !== null && (
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] px-6">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] px-6">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 className="text-lg font-bold text-[#1A1A1A] mb-2">위치 삭제</h3>
             <p className="text-sm text-[#64748B] mb-6">이 위치를 삭제할까요? 기존 항목의 위치 표시는 그대로 유지됩니다.</p>

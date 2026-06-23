@@ -305,7 +305,7 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
         }
         const c = cfg[actionType] || cfg.completed
         return (
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-6">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-6">
             <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
               <div className={`w-16 h-16 bg-gradient-to-br ${c.grad} rounded-full flex items-center justify-center mx-auto mb-4`}>
                 <c.Icon size={32} className="text-white" />
@@ -327,7 +327,7 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
       })()}
 
       {showDeleteConfirm && (
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-6">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-6">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 className="text-lg font-bold text-[#1A1A1A] mb-2">항목 삭제</h3>
             <p className="text-sm text-[#64748B] mb-6">이 항목을 삭제하시겠습니까? 삭제한 항목은 복구할 수 없습니다.</p>
@@ -351,7 +351,7 @@ export function ItemDetail({ item, onBack, onEdit, onDeleted }: ItemDetailProps)
       )}
 
       {actionError && (
-        <div className="absolute inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-6" onClick={() => setActionError('')}>
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-6" onClick={() => setActionError('')}>
           <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
             <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <AlertCircle size={32} className="text-rose-500" />

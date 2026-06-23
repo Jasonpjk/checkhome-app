@@ -157,7 +157,7 @@ export function Vehicle({ onVehicleClick }: VehicleProps) {
       </div>
 
       {showAddModal && (
-        <div className="absolute inset-0 bg-black/50 flex items-end z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-end z-50">
           <div className="bg-white w-full rounded-t-2xl p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold">차량 추가</h2>
@@ -208,7 +208,7 @@ export function Vehicle({ onVehicleClick }: VehicleProps) {
       )}
 
       {deleteTargetId !== null && (
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 px-6">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-6">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
             <h3 className="text-lg font-bold mb-2">차량 삭제</h3>
             <p className="text-sm text-[#475569] mb-6">이 차량을 삭제하시겠습니까?</p>
@@ -221,7 +221,7 @@ export function Vehicle({ onVehicleClick }: VehicleProps) {
       )}
 
       {showSuccessModal && (
-        <div className="absolute inset-0 bg-black/30 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-8 text-center shadow-2xl">
             <CheckCircle size={48} className="text-emerald-500 mx-auto mb-3" />
             <p className="font-bold text-lg">차량이 추가되었습니다</p>

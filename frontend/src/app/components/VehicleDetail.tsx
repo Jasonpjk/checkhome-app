@@ -113,7 +113,7 @@ export function VehicleDetail({ vehicle, onBack }: VehicleDetailProps) {
       </div>
 
       {selectedCheck && (
-        <div className="absolute inset-0 bg-black/50 flex items-end z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-end z-50">
           <div className="bg-white w-full rounded-t-2xl p-6 max-h-[75vh] overflow-y-auto">
             <h3 className="text-lg font-bold mb-1">{selectedCheck.check_type}</h3>
             <p className="text-xs text-[#94A3B8] mb-6">점검 완료 처리</p>
@@ -165,7 +165,7 @@ export function VehicleDetail({ vehicle, onBack }: VehicleDetailProps) {
       )}
 
       {showSuccess && (
-        <div className="absolute inset-0 bg-black/30 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-8 text-center shadow-2xl">
             <CheckCircle size={48} className="text-emerald-500 mx-auto mb-3" />
             <p className="font-bold text-lg">점검 완료!</p>
