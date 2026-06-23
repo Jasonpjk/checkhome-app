@@ -22,8 +22,20 @@ def _auto_grant_admin(user: User, db: Session) -> None:
         db.commit()
 
 
+def _validate_password(password: str) -> None:
+    """비밀번호 보안 표준: 8자 이상 + 영문/숫자/특수문자 중 2종 이상 조합 (프론트 통과해도 백엔드 재검증)"""
+    import re
+    kinds = sum(bool(re.search(p, password)) for p in (r"[a-zA-Z]", r"[0-9]", r"[^a-zA-Z0-9]"))
+    if len(password) < 8 or kinds < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="비밀번호는 8자 이상이며 영문·숫자·특수문자 중 2가지 이상을 포함해야 합니다",
+        )
+
+
 @router.post("/register", response_model=TokenResponse)
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
+    _validate_password(req.password)
     if db.query(User).filter(User.email == req.email).first():
         raise HTTPException(status_code=400, detail="이미 사용중인 이메일입니다")
     user = User(

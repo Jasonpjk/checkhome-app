@@ -35,9 +35,13 @@ export function Login({ onLogin }: LoginProps) {
       setError('약관 및 개인정보처리방침에 동의해주세요')
       return
     }
-    if (isSignup && password.length < 6) {
-      setError('비밀번호는 6자 이상이어야 해요')
-      return
+    if (isSignup) {
+      // 비밀번호 보안 표준: 8자 이상 + 영문/숫자/특수문자 중 2종 이상 조합
+      const kinds = [/[a-zA-Z]/, /[0-9]/, /[^a-zA-Z0-9]/].filter((re) => re.test(password)).length
+      if (password.length < 8 || kinds < 2) {
+        setError('비밀번호는 8자 이상이며 영문·숫자·특수문자 중 2가지 이상을 포함해야 해요')
+        return
+      }
     }
     setLoading(true)
     setError('')
@@ -209,7 +213,7 @@ export function Login({ onLogin }: LoginProps) {
                 </button>
               </div>
               {isSignup && (
-                <p className="text-xs text-[#94A3B8]">비밀번호는 6자 이상이어야 해요</p>
+                <p className="text-xs text-[#94A3B8]">8자 이상 · 영문·숫자·특수문자 중 2가지 이상 조합</p>
               )}
             </div>
 
